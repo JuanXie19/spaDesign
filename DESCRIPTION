@@ -1,15 +1,21 @@
 Package: spaDesign
-Title: What the Package Does (One Line, Title Case)
+Title: spaDesign
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+        c(person(given = 'Juan',
+			     family = 'Xie',
+			     role = c('aut','cre'),
+			     email = 'xie.1097@buckeyemail.osu.edu'),
+	       person(given = 'Dongjun',
+			      family = 'Chung',
+			      role = c('aut')))
+Description: This package provides implementation of a simulation-based statistical framework that aids in experimental design of sequencing-based spatial transcriptomics studies. 
+    It includes functions for feature selection, parameter estimation, data simulation and power evaluation.
+Imports: 
+License: GPL (>=2)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2.9000
-Depends: 
-    R (>= 2.10)
+Depends: MASS, Matrix, RANN, Rfast, aricode, clue, doParallel, dplyr, foreach, igraph, invgamma, movMF, nimble, parallel, pbapply, pdist, readr, truncnorm
+    R (>= 4.0.0)
 LazyData: true
