@@ -18,6 +18,7 @@
 
 ## How to use `spaDesign`
 
-Details can be find here: [spaDesign vignette](https://htmlpreview.github.io/?https://github.com/JuanXie19/JuanXie19.github.io)
+Details can be find here: [spaDesign vignette](https://htmlpreview.github.io/?https://github.com/JuanXie19/JuanXie19.github.io/blob/main/spaDesign_vignette.html)
+
 
  
