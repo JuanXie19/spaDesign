@@ -3,7 +3,7 @@ library(ggplot2)
 
 
 reference_data <- list(
-  "Mouse Brain" = readRDS('C:/Users/xie15/OneDrive/Documents/GitHub/shinyDesign2/inst/extdata/ref_chicken_heart.rds'),
+  "Chicken Heart" = readRDS('C:/Users/xie15/OneDrive/Documents/GitHub/shinyDesign2/inst/extdata/ref_chicken_heart.rds'),
   "Human Brain" = readRDS('C:/Users/xie15/OneDrive/Documents/GitHub/shinyDesign2/inst/extdata/ref_human_brain.rds')
 )
 
@@ -97,3 +97,6 @@ reference_data <- list(
   }
   
   shinyApp(ui, server)
+  
+  
+  
