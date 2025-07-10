@@ -39,7 +39,7 @@ simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_fac
     ES_factor <- effect_size_factor
 
     message("Starting simulation...\n")
-    all_count <- future_lapply(seq_along(par_GP), function(d){
+    all_count <- lapply(seq_along(par_GP), function(d){
         domain <- names(par_GP)[d]
         GP.par <- par_GP[[d]]
         
