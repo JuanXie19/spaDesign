@@ -42,13 +42,12 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
     coords_norm$domain <- loc_file$domain
 
     DOMAIN <- sort(unique(loc_file$domain))
-	RST <- list()
-	for (d in 1:length(DOMAIN)){
+	RST <- lapply(seq_along(DOMAIN), function(d){
 		coords_sub <- coords_norm %>% filter(domain == DOMAIN[d])
 		FIT <- select_best_M(x = as.matrix(coords_sub[, c('x', 'y')]), M_candidates = M_candidates, iter_max = iter_max, tol = tol)
-		RST[[d]] <- FIT
-	}
-    
+		return(FIT)	
+	})
+	   
     message('Completed fitting Fisher-Gaussian mixture models for all domains')
     names(RST) <- DOMAIN
     shinyDesign@paramsFG <- RST
