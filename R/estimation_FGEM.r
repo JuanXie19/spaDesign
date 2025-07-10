@@ -52,6 +52,8 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
     message('Completed fitting Fisher-Gaussian mixture models for all domains')
     names(RST) <- DOMAIN
     shinyDesign@paramsFG <- RST
+	shinyDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
+	shinyDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
     return(shinyDesign)
 }
 
