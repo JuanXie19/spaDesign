@@ -23,7 +23,15 @@
 #'                                    SEED = 123,
 #'                                    prop = 0.7)
 #' }
-simulation_Spatial <- function(shinyDesign, selected_M_list, seq_depth_factor, SIGMA, SEED, prop){
+simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop){
+	
+	if (is.null(selected_M_list)) {
+        if (!is.null(shinyDesign@selected_M_list_BIC)) {
+            selected_M_list <- shinyDesign@selected_M_list_BIC
+        } else {
+            stop("No selected_M_list provided and shinyDesign does not contain selected_M_list_BIC.")
+        }
+    }
 	
 	# Validate inputs
 	 if (length(selected_M_list) != length(shinyDesign@paramsFG)) {
