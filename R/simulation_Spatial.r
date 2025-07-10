@@ -26,10 +26,10 @@
 simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop){
 	
 	if (is.null(selected_M_list)) {
-        if (!is.null(shinyDesign@selected_M_list_BIC)) {
+        if (!is.null(shinyDesign@selected_M_list_AIC)) {
             selected_M_list <- shinyDesign@selected_M_list_BIC
         } else {
-            stop("No selected_M_list provided and shinyDesign does not contain selected_M_list_BIC.")
+            stop("No selected_M_list provided and shinyDesign does not contain selected_M_list_AIC.")
         }
     }
 	
