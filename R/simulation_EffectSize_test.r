@@ -19,28 +19,9 @@
 library(future.apply)
 library(pbapply)  # optional for progress bar if you want
 
-simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED, workers = 4) {
-  
-  # Validate inputs as before
-  if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) stop("seq_depth_factor must be positive numeric.")
-  if (!is.numeric(effect_size_factor) || effect_size_factor <= 0) stop("effect_size_factor must be positive numeric.")
-  
-  # Extract only the data you need outside future_lapply
-  count_matrix <- refCounts(shinyDesign)
-  loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
-  par_GP <- paramsGP(shinyDesign)
-  
-  # Normalize coords once
-  coords_norm <- igraph::norm_coords(as.matrix(loc_data[, c('x', 'y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-  coords_norm <- as.data.frame(coords_norm)
-  coords_norm$domain <- loc_data$domain
-  
-  # Setup parallel plan and increase globals max size
-  options(future.globals.maxSize = 2 * 1024^3) # 6 GiB just in case
-  plan(multisession, workers = workers)
-  
-  # Helper function for each domain; pass only what is needed
-  simulate_domain <- function(domain_name, par_GP_domain, coords_norm_df, count_mat, seqDepth_factor, ES_factor, SEED) {
+
+# Helper function for each domain; pass only what is needed
+simulate_domain <- function(domain_name, par_GP_domain, coords_norm_df, count_mat, seqDepth_factor, ES_factor, SEED) {
     
     idx <- which(coords_norm_df$domain == domain_name)
     coords_norm_sub <- coords_norm_df[idx, ]
@@ -70,6 +51,30 @@ simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_fac
     
     return(gene_counts_mat)
   }
+
+
+
+simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED, workers = 4) {
+  
+  # Validate inputs as before
+  if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) stop("seq_depth_factor must be positive numeric.")
+  if (!is.numeric(effect_size_factor) || effect_size_factor <= 0) stop("effect_size_factor must be positive numeric.")
+  
+  # Extract only the data you need outside future_lapply
+  count_matrix <- refCounts(shinyDesign)
+  loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
+  par_GP <- paramsGP(shinyDesign)
+  
+  # Normalize coords once
+  coords_norm <- igraph::norm_coords(as.matrix(loc_data[, c('x', 'y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+  coords_norm <- as.data.frame(coords_norm)
+  coords_norm$domain <- loc_data$domain
+  
+  # Setup parallel plan and increase globals max size
+  
+  plan(multisession, workers = workers)
+  
+
   
   # Run parallel over domains explicitly passing minimal globals
   all_counts <- future_lapply(
