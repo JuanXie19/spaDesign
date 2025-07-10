@@ -4,7 +4,13 @@
 \alias{simulation_EffectSize}
 \title{Simualte spatial transcriptomics data with modified effect size and sequencing depth}
 \usage{
-simulation_EffectSize(shinyDesign, seq_depth_factor, effect_size_factor, SEED)
+simulation_EffectSize(
+  shinyDesign,
+  seq_depth_factor,
+  effect_size_factor,
+  SEED,
+  workers = 4
+)
 }
 \arguments{
 \item{shinyDesign}{A \code{shinyDesign} object containing spatial coordiantes, gene expression and estimated parameters}

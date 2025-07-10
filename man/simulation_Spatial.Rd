@@ -6,7 +6,7 @@
 \usage{
 simulation_Spatial(
   shinyDesign,
-  selected_M_list,
+  selected_M_list = NULL,
   seq_depth_factor,
   SIGMA,
   SEED,

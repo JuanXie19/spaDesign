@@ -16,92 +16,89 @@
 #'                                        SEED = 123)
 #' }
 
-simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED){
+library(future.apply)
+library(pbapply)  # optional for progress bar if you want
 
-    if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
-        stop("seq_depth_factor must be a positive numeric value.")
-    }
-    if (!is.numeric(effect_size_factor) || effect_size_factor <= 0) {
-        stop("effect_size_factor must be a positive numeric value.")
-    }
-	
-	# extract reference data
-    count_matrix <- refCounts(shinyDesign)    
-    loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
-    par_GP <- paramsGP(shinyDesign)
+simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED, workers = 4) {
+  
+  # Validate inputs as before
+  if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) stop("seq_depth_factor must be positive numeric.")
+  if (!is.numeric(effect_size_factor) || effect_size_factor <= 0) stop("effect_size_factor must be positive numeric.")
+  
+  # Extract only the data you need outside future_lapply
+  count_matrix <- refCounts(shinyDesign)
+  loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
+  par_GP <- paramsGP(shinyDesign)
+  
+  # Normalize coords once
+  coords_norm <- igraph::norm_coords(as.matrix(loc_data[, c('x', 'y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+  coords_norm <- as.data.frame(coords_norm)
+  coords_norm$domain <- loc_data$domain
+  
+  # Setup parallel plan and increase globals max size
+  options(future.globals.maxSize = 2 * 1024^3) # 6 GiB just in case
+  plan(multisession, workers = workers)
+  
+  # Helper function for each domain; pass only what is needed
+  simulate_domain <- function(domain_name, par_GP_domain, coords_norm_df, count_mat, seqDepth_factor, ES_factor, SEED) {
     
-    ## scale the coordinates to [0,1] range
-    coords_norm <- igraph::norm_coords(as.matrix(loc_data[,c('x', 'y')]),xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-    coords_norm <- as.data.frame(coords_norm)
-    coords_norm$domain <- loc_data$domain
+    idx <- which(coords_norm_df$domain == domain_name)
+    coords_norm_sub <- coords_norm_df[idx, ]
+    coords_norm_out <- coords_norm_df[-idx, ]
     
-    seqDepth_factor <- seq_depth_factor
-    ES_factor <- effect_size_factor
-
-    message("Starting simulation...\n")
-    all_count <- future_lapply(seq_along(par_GP), function(d){
-        domain <- names(par_GP)[d]
-        GP.par <- par_GP[[d]]
-        
-        idx <- which(coords_norm$domain == domain)
-        coords_norm_sub <- coords_norm[idx, ]
-        coords_norm_out <- coords_norm[-idx, ]
-                
-        message(sprintf("Simulating genes for domain: %s\n", domain))
-                
-        gene_count <- lapply(seq_along(GP.par), function(g) {
-            tryCatch({
-                    gene <- names(GP.par)[g]
-                    message(sprintf("Simulating gene: %s in domain: %s\n", gene, domain))
-                    nnGP_fit <- GP.par[[g]]
-                    
-                    spot_idx <- idx
-                
-                    tt <- simulate_genecount_ES(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, count_matrix, gene, spot_idx)
-                    return(tt)
-                    }, error = function(e) {
-                    warning(paste('Error in gene', gene, 'of domain', domain, ':', e$message))
-                    return(NULL)            
-                    })
-        })
-        
-        # Filter out NULL values
-        gene_count <- Filter(Negate(is.null), gene_count)
-    
-        if (length(gene_count) > 0) {
-          if (length(gene_count) == 1) {
-            gene_count <- t(data.frame(gene_count[[1]]))  # Ensure it's a data frame if only one row
-          } else {
-            gene_count <- do.call(rbind, gene_count)
-          }
-        colnames(gene_count) <- colnames(count_matrix)
-        rownames(gene_count) <- paste0(domain, "-", names(GP.par))
-        } else {
-          warning(paste("All gene simulations for domain", domain, "returned NULL."))
-          return(NULL)
-        }
-    
-        return(gene_count)
+    gene_counts_list <- lapply(names(par_GP_domain), function(gene) {
+      nnGP_fit <- par_GP_domain[[gene]]
+      
+      # Call the lower-level simulation for a single gene
+      simulate_genecount_ES(
+        SEED = SEED,
+        coords_norm_sub = coords_norm_sub,
+        coords_norm_out = coords_norm_out,
+        nnGP_fit = nnGP_fit,
+        seqDepth_factor = seqDepth_factor,
+        ES_factor = ES_factor,
+        counts = count_mat,
+        gene = gene,
+        spot_idx = idx
+      )
     })
     
-    # Filter out NULL values from all_count
-    all_count <- Filter(Negate(is.null), all_count)
-
-    if (length(all_count) > 0) {
-        all_count <- do.call(rbind, all_count)
-        if (is.matrix(all_count) || is.data.frame(all_count)) {
-            shinyDesign@simCounts <- all_count
-            shinyDesign@simcolData <- refcolData(shinyDesign)
-            message("Simulation complete.\n")
-            return(shinyDesign)
-        } else {
-            stop("Combined all_count is not a matrix or data frame.")
-        }
-    } else {
-        stop("All domain simulations returned NULL.")
-    }    
+    # Combine all gene counts for this domain into matrix/data.frame
+    gene_counts_mat <- do.call(rbind, gene_counts_list)
+    colnames(gene_counts_mat) <- colnames(count_mat)
+    rownames(gene_counts_mat) <- paste0(domain_name, "-", names(par_GP_domain))
+    
+    return(gene_counts_mat)
+  }
+  
+  # Run parallel over domains explicitly passing minimal globals
+  all_counts <- future_lapply(
+    names(par_GP),
+    function(domain_name) {
+      simulate_domain(
+        domain_name = domain_name,
+        par_GP_domain = par_GP[[domain_name]],
+        coords_norm_df = coords_norm,
+        count_mat = count_matrix,
+        seqDepth_factor = seq_depth_factor,
+        ES_factor = effect_size_factor,
+        SEED = SEED
+      )
+    }
+  )
+  
+  # Combine all domain results
+  all_counts <- do.call(rbind, all_counts)
+  
+  if (is.matrix(all_counts) || is.data.frame(all_counts)) {
+    shinyDesign@simCounts <- all_counts
+    shinyDesign@simcolData <- refcolData(shinyDesign)
+    message("Simulation complete.\n")
+    return(shinyDesign)
+  } else {
+    stop("Combined all_count is not a matrix or data frame.")
+  }
 }
-
 
 
 #' Simulate expression count for a single gene
