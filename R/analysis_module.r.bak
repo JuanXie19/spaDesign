@@ -53,55 +53,18 @@ analysisServer <- function(id, data_obj) {
     output$sim_plot <- renderPlot({
       req(sim_results())
       results <- sim_results()
-	  library(dplyr)
-	  library(ggplot2)
-	  library(scam)
-	  
-	  ## helper to compute summary + fit
-	  process_curve <- function(df, color){
-		df_sum <- df %>%
-					group_by(seq_depth) %>%
-					summarise(mean_NMI = mean(NMI),
-					se_NMI = sd(NMI) / sqrt (n()),
-					.groups = 'drop')
-		fit <- tryCatch({
-          scam(mean_NMI ~ s(seq_depth, bs="mpi"), data=df_sum)
-        }, error = function(e) {
-          message("Fallback to linear due to fitting issue.")
-          lm(mean_NMI ~ seq_depth, data=df_sum)
-        })
-        
-        df_sum$fit_NMI <- predict(fit)
-        df_sum$curve_color <- color
-        return(df_sum)	  	  
-	  }
-	  
-      # Process each curve type
-      df_base <- process_curve(results$base, "blue")
-      list_curves <- list(df_base)
-      
+      p <- ggplot(results$base, aes(x=seq_depth, y=NMI)) +
+        geom_point(color="blue") + geom_line(color="blue") +
+        labs(title="Performance vs Sequencing Depth", x="Sequencing Depth", y="NMI") + theme_minimal()
       if (!is.null(results$effect)) {
-        df_effect <- process_curve(results$effect, "red")
-        list_curves <- append(list_curves, list(df_effect))
+        p <- p + geom_point(data=results$effect, aes(x=seq_depth, y=NMI), color="red") +
+          geom_line(data=results$effect, aes(x=seq_depth, y=NMI), color="red")
       }
       if (!is.null(results$spatial)) {
-        df_spatial <- process_curve(results$spatial, "green")
-        list_curves <- append(list_curves, list(df_spatial))
+        p <- p + geom_point(data=results$spatial, aes(x=seq_depth, y=NMI), color="green") +
+          geom_line(data=results$spatial, aes(x=seq_depth, y=NMI), color="green")
       }
-      
-      # Combine for ggplot
-      plot_data <- bind_rows(list_curves, .id="curve_id")
-      
-      ggplot(plot_data, aes(x=seq_depth, y=mean_NMI, color=curve_color)) +
-        geom_point() +
-        geom_errorbar(aes(ymin=mean_NMI - se_NMI, ymax=mean_NMI + se_NMI), width=0.05) +
-        geom_line(aes(y=fit_NMI), size=1.2) +
-        scale_color_manual(values=c("blue"="blue", "red"="red", "green"="green"),
-                           labels=c("Base", "Effect size", "Spatial")) +
-        labs(title="Performance vs Sequencing Depth",
-             x="Sequencing Depth", y="Mean NMI",
-             color="Curve") +
-        theme_minimal()
+      p
     })
     
     output$sim_summary <- renderPrint({
