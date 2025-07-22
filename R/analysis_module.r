@@ -3,16 +3,16 @@ analysisUI <- function(id) {
   sidebarLayout(
     sidebarPanel(
       sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
-                  min = 0.5, max = 2, value = c(0.5, 1.5), step = 0.1),
+                  min = 0.5, max = 8, value = c(1, 8), step = 0.5),
       checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
       conditionalPanel(
         condition = sprintf("input['%s']", ns("add_effect_size")),
-        sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.1)
+        sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.5)
       ),
       checkboxInput(ns("add_spatial"), "Add Spatial Perturbation?", value = FALSE),
       conditionalPanel(
         condition = sprintf("input['%s']", ns("add_spatial")),
-        sliderInput(ns("sigma"), "Sigma (spatial variance):", min = 0.5, max = 3, value = 1.5, step = 0.1)
+        sliderInput(ns("sigma"), "Sigma (spatial variance):", min = 0.5, max = 3, value = 1.5, step = 0.5)
       ),
       numericInput(ns("n_rep"), "Number of replicates:", value = 5, min = 1, step = 1),
       actionButton(ns("run_sim"), "Run Simulation", class = "btn-primary")
@@ -30,8 +30,9 @@ analysisServer <- function(id, data_obj) {
     
     observeEvent(input$run_sim, {
       req(data_obj())
-      seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
-      
+      #seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
+      seq_range <- c(1:3, 5, 7, 10)
+
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = input$n_rep)
         results <- list(base = base_res)

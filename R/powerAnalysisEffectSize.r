@@ -53,14 +53,13 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
                    total_counts = total_counts, NMI = NMI)
     }
     
-     num_cores <- min(detectCores()-2, 8)
-    cl <- makeCluster(num_cores)
-  
-    results_list <- foreach(i = 1:nrow(param_grid), .combine = rbind, .packages = 'shinyDesign') %dopar% {
-        process_row(param_grid[i, ])}
+     
+    results_list <- lapply(1:nrow(param_grid), function(i){
+        process_row(param_grid[i, ])
+		})
     
     # Combine the results into a single data frame
     results <- do.call(rbind, results_list)
-    results.t <- as.data.frame(t(results))
+    results.t <- as.data.frame(results)
     return(results.t)
 }

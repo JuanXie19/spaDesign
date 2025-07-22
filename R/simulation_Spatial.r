@@ -34,9 +34,9 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     }
 	
 	# Validate inputs
-	 if (length(selected_M_list) != length(shinyDesign@paramsFG)) {
-        stop("Length of selected_M_list must match number of domains in shinyDesign")
-    }
+	 #if (length(selected_M_list) != length(shinyDesign@paramsFG)) {
+      #  stop("Length of selected_M_list must match number of domains in shinyDesign")
+    #}
 	
     if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
         stop("seq_depth_factor must be a positive numeric value.")
