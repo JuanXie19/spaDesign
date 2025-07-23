@@ -2,8 +2,8 @@ analysisUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
     sidebarPanel(
-      sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
-                  min = 0.5, max = 2, value = c(0.5, 1.5), step = 0.1),
+      #sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
+      #            min = 0.5, max = 2, value = c(0.5, 1.5), step = 0.1),
       checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
       conditionalPanel(
         condition = sprintf("input['%s']", ns("add_effect_size")),
@@ -30,21 +30,25 @@ analysisServer <- function(id, data_obj) {
     
     observeEvent(input$run_sim, {
       req(data_obj())
-      seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
-      
+      #seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
+      seq_range <- c(1:3, 5,7,10)
+	  
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = input$n_rep)
-        results <- list(base = base_res)
+        base_res$condition <- 'Base'
+		results <- list(base = base_res)
         
         if (input$add_effect_size) {
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
                                                 seq_depth_range = seq_range, n_rep = input$n_rep)
+		  effect_res$condition <- 'Effect size'										
           results$effect <- effect_res
         }
         if (input$add_spatial) {
           spatial_res <- powerAnalysisSpatial(data_obj(), prop_range = 0.5,
                                               seq_depth_range = seq_range, n_rep = input$n_rep)
-          results$spatial <- spatial_res
+          spatial_res$condition <- 'Spatial'
+		  results$spatial <- spatial_res
         }
         sim_results(results)
       })
@@ -55,53 +59,43 @@ analysisServer <- function(id, data_obj) {
       results <- sim_results()
 	  library(dplyr)
 	  library(ggplot2)
-	  library(scam)
 	  
 	  ## helper to compute summary + fit
-	  process_curve <- function(df, color){
+	  process_curve <- function(df, label){
 		df_sum <- df %>%
 					group_by(seq_depth) %>%
 					summarise(mean_NMI = mean(NMI),
 					se_NMI = sd(NMI) / sqrt (n()),
-					.groups = 'drop')
-		fit <- tryCatch({
-          scam(mean_NMI ~ s(seq_depth, bs="mpi"), data=df_sum)
-        }, error = function(e) {
-          message("Fallback to linear due to fitting issue.")
-          lm(mean_NMI ~ seq_depth, data=df_sum)
-        })
+					.groups = 'drop') %>% 
+					mutate(condition = label)
+        }
         
-        df_sum$fit_NMI <- predict(fit)
-        df_sum$curve_color <- color
-        return(df_sum)	  	  
-	  }
-	  
+     
       # Process each curve type
       df_base <- process_curve(results$base, "blue")
+	  df_base <- as.data.frame(df_base)
       list_curves <- list(df_base)
       
       if (!is.null(results$effect)) {
         df_effect <- process_curve(results$effect, "red")
+		df_effect <- as.data.frame(df_effect)
         list_curves <- append(list_curves, list(df_effect))
       }
       if (!is.null(results$spatial)) {
         df_spatial <- process_curve(results$spatial, "green")
+		df_spatial <- as.data.frame(df_spatial)
         list_curves <- append(list_curves, list(df_spatial))
       }
       
       # Combine for ggplot
-      plot_data <- bind_rows(list_curves, .id="curve_id")
+      plot_data <- bind_rows(list_curves)
       
-      ggplot(plot_data, aes(x=seq_depth, y=mean_NMI, color=curve_color)) +
-        geom_point() +
-        geom_errorbar(aes(ymin=mean_NMI - se_NMI, ymax=mean_NMI + se_NMI), width=0.05) +
-        geom_line(aes(y=fit_NMI), size=1.2) +
-        scale_color_manual(values=c("blue"="blue", "red"="red", "green"="green"),
-                           labels=c("Base", "Effect size", "Spatial")) +
-        labs(title="Performance vs Sequencing Depth",
-             x="Sequencing Depth", y="Mean NMI",
-             color="Curve") +
-        theme_minimal()
+	  
+	  ggplot(plot_data, aes(x = seq_depth, y = mean_NMI, color = condition)) + 
+		geom_point() + 
+		geom_smooth(method = 'loess', span = 0.7, se = FALSE) + ylim(c(0, 1))+
+		theme_minimal()
+	
     })
     
     output$sim_summary <- renderPrint({
