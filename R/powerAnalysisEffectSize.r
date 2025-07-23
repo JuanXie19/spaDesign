@@ -61,6 +61,6 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
     
     # Combine the results into a single data frame
     results <- do.call(rbind, results_list)
-    results.t <- as.data.frame(t(results))
+    results.t <- as.data.frame(results)
     return(results.t)
 }
