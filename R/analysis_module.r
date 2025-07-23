@@ -2,10 +2,11 @@ analysisUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
     sidebarPanel(
-      sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
-                  min = 0.5, max = 8, value = c(1, 8), step = 0.5),
-      checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
-      conditionalPanel(
+
+	  checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
+		helpText("If checked, simulates data with modified effect size. "),
+		
+	  conditionalPanel(
         condition = sprintf("input['%s']", ns("add_effect_size")),
         sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.5)
       ),
@@ -31,21 +32,24 @@ analysisServer <- function(id, data_obj) {
     observeEvent(input$run_sim, {
       req(data_obj())
       #seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
-      seq_range <- c(1:3, 5, 7, 10)
 
+      seq_range <- c(1:3, 5,7,10)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = input$n_rep)
-        results <- list(base = base_res)
+        base_res$condition <- 'Base'
+		results <- list(base = base_res)
         
         if (input$add_effect_size) {
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
                                                 seq_depth_range = seq_range, n_rep = input$n_rep)
+		  effect_res$condition <- 'Effect size'										
           results$effect <- effect_res
         }
         if (input$add_spatial) {
-          spatial_res <- powerAnalysisSpatial(data_obj(), prop_range = 0.5,
+          spatial_res <- powerAnalysisSpatial(data_obj(),sigma = input$sigma, prop_range = 0.7,
                                               seq_depth_range = seq_range, n_rep = input$n_rep)
-          results$spatial <- spatial_res
+          spatial_res$condition <- 'Spatial'
+		  results$spatial <- spatial_res
         }
         sim_results(results)
       })
@@ -54,18 +58,45 @@ analysisServer <- function(id, data_obj) {
     output$sim_plot <- renderPlot({
       req(sim_results())
       results <- sim_results()
-      p <- ggplot(results$base, aes(x=seq_depth, y=NMI)) +
-        geom_point(color="blue") + geom_line(color="blue") +
-        labs(title="Performance vs Sequencing Depth", x="Sequencing Depth", y="NMI") + theme_minimal()
+	  library(dplyr)
+	  library(ggplot2)
+	  
+	  ## helper to compute summary + fit
+	  process_curve <- function(df, label){
+		df_sum <- df %>%
+					group_by(seq_depth) %>%
+					summarise(mean_NMI = mean(NMI),
+					se_NMI = sd(NMI) / sqrt (n()),
+					.groups = 'drop') %>% 
+					mutate(condition = label)
+        }
+        
+     
+      # Process each curve type
+      df_base <- process_curve(results$base, "Base")
+	  df_base <- as.data.frame(df_base)
+      list_curves <- list(df_base)
+      
       if (!is.null(results$effect)) {
-        p <- p + geom_point(data=results$effect, aes(x=seq_depth, y=NMI), color="red") +
-          geom_line(data=results$effect, aes(x=seq_depth, y=NMI), color="red")
+        df_effect <- process_curve(results$effect, "Effect size")
+		df_effect <- as.data.frame(df_effect)
+        list_curves <- append(list_curves, list(df_effect))
       }
       if (!is.null(results$spatial)) {
-        p <- p + geom_point(data=results$spatial, aes(x=seq_depth, y=NMI), color="green") +
-          geom_line(data=results$spatial, aes(x=seq_depth, y=NMI), color="green")
+        df_spatial <- process_curve(results$spatial, "Spatial")
+		df_spatial <- as.data.frame(df_spatial)
+        list_curves <- append(list_curves, list(df_spatial))
       }
-      p
+      
+      # Combine for ggplot
+      plot_data <- bind_rows(list_curves)
+      
+	  
+	  ggplot(plot_data, aes(x = seq_depth, y = mean_NMI, color = condition)) + 
+		geom_point() + 
+		geom_smooth(method = 'loess', span = 0.7, se = FALSE) + ylim(c(0, 1))+
+		theme_minimal()
+	
     })
     
     output$sim_summary <- renderPrint({

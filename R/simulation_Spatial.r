@@ -118,6 +118,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
 	
 	REPEAT <- 1000
 	COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
+	COUNT.SIM <- round(COUNT.SIM)
 	message("Simulation complete.\n")
 	shinyDesign@simCounts <- COUNT.SIM
 	shinyDesign@simcolData <- refcolData(shinyDesign)
