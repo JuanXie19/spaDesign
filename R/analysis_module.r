@@ -4,8 +4,11 @@ analysisUI <- function(id) {
     sidebarPanel(
       #sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
       #            min = 0.5, max = 2, value = c(0.5, 1.5), step = 0.1),
-      checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
-      conditionalPanel(
+	 
+	  checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
+		helpText("If checked, simulates data with modified effect size. "),
+		
+	  conditionalPanel(
         condition = sprintf("input['%s']", ns("add_effect_size")),
         sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.1)
       ),
@@ -45,7 +48,7 @@ analysisServer <- function(id, data_obj) {
           results$effect <- effect_res
         }
         if (input$add_spatial) {
-          spatial_res <- powerAnalysisSpatial(data_obj(), prop_range = 0.5,
+          spatial_res <- powerAnalysisSpatial(data_obj(),sigma = input$sigma, prop_range = 0.7,
                                               seq_depth_range = seq_range, n_rep = input$n_rep)
           spatial_res$condition <- 'Spatial'
 		  results$spatial <- spatial_res
@@ -72,17 +75,17 @@ analysisServer <- function(id, data_obj) {
         
      
       # Process each curve type
-      df_base <- process_curve(results$base, "blue")
+      df_base <- process_curve(results$base, "Base")
 	  df_base <- as.data.frame(df_base)
       list_curves <- list(df_base)
       
       if (!is.null(results$effect)) {
-        df_effect <- process_curve(results$effect, "red")
+        df_effect <- process_curve(results$effect, "Effect size")
 		df_effect <- as.data.frame(df_effect)
         list_curves <- append(list_curves, list(df_effect))
       }
       if (!is.null(results$spatial)) {
-        df_spatial <- process_curve(results$spatial, "green")
+        df_spatial <- process_curve(results$spatial, "Spatial")
 		df_spatial <- as.data.frame(df_spatial)
         list_curves <- append(list_curves, list(df_spatial))
       }
