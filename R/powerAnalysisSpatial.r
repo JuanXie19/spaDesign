@@ -20,7 +20,7 @@
 
 library(parallel)
 
-powerAnalysisSpatial <- function(shinyDesign, prop_range, seq_depth_range, n_rep) {
+powerAnalysisSpatial <- function(shinyDesign, sigma, prop_range, seq_depth_range, n_rep) {
     # Create a data frame of all combinations of es_range, seq_depth_range, and n_rep
     param_grid <- expand.grid(seq_depth = seq_depth_range, 
                               prop = prop_range, 
@@ -33,7 +33,7 @@ powerAnalysisSpatial <- function(shinyDesign, prop_range, seq_depth_range, n_rep
         SEED <- as.numeric(row["SEED"])
 		
 		# current just allow SIGMA = 1
-		SIGMA <- 1
+		SIGMA <- sigma
         
         message(sprintf("Simulating data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
