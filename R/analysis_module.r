@@ -54,7 +54,6 @@ analysisUI <- function(id) {
           options = list(container = "body")
         )
       ),
-      checkboxInput(ns("add_spatial"), "Add Spatial Perturbation?", value = FALSE),
       conditionalPanel(
         condition = sprintf("input['%s']", ns("add_spatial")),
         sliderInput(ns("sigma"), "Sigma (spatial variance):", min = 0.5, max = 3, value = 1.5, step = 0.1)
