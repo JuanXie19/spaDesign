@@ -5,12 +5,54 @@ analysisUI <- function(id) {
       #sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
       #            min = 0.5, max = 2, value = c(0.5, 1.5), step = 0.1),
 	 
-	  checkboxInput(ns("add_effect_size"), "Add Effect Size?", value = FALSE),
-		helpText("If checked, simulates data with modified effect size. "),
-		
+	 # effec size checkbox
+      div(
+        class = "form-group shiny-input-container", # Important for styling
+        tags$label(
+          # Input element for the checkbox
+          tags$input(id = ns("add_effect_size"), type = "checkbox", class = "shiny-input-checkbox"),
+          # The checkbox text label
+          tags$span("Add Effect Size?"),
+          # The icon right after the text, but within the label
+          tags$span(
+            id = ns("effect_size_info"),
+            icon("info-circle")
+          )
+        ),
+        # You still need the hidden value for the checkbox, Shiny handles this normally
+        # For simplicity, we can let shinyBS handle the tooltip here
+        bsTooltip(
+          id = ns("effect_size_info"),
+          title = "If checked, simulates data with an effect size relative to the baseline. A value of 1 means baseline effect, while 2 means twice the baseline effect. Larger values lead to a stronger signal.",
+          placement = "right",
+          options = list(container = "body")
+        )
+      ),
+      # Existing helpText can be removed or repositioned if you use this tooltip
+      # helpText("If checked, simulates data with modified effect size."), # Remove this if tooltip is enough
+      
 	  conditionalPanel(
         condition = sprintf("input['%s']", ns("add_effect_size")),
         sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.1)
+      ),
+	  
+	  ## add spatial checkbox
+	  div(
+        class = "form-group shiny-input-container", # Important for styling
+        tags$label(
+          tags$input(id = ns("add_spatial"), type = "checkbox", class = "shiny-input-checkbox"),
+          tags$span("Add Spatial Perturbation?"),
+          tags$span(
+            id = ns("spatial_info"),
+            icon("info-circle")
+          )
+        ),
+        bsTooltip(
+          id = ns("spatial_info"),
+          title = "If checked, simulate data with spatial noise. Larger sigma leads to more disturbed spatial pattern. ",
+          placement = "right",
+          options = list(container = "body")
+        )
       ),
       checkboxInput(ns("add_spatial"), "Add Spatial Perturbation?", value = FALSE),
       conditionalPanel(
