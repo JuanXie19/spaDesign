@@ -1,6 +1,8 @@
 library(shiny)
 library(ggplot2)
 library(shinyDesign2)
+library(DT)
+library(shinyBS)
 
 source("modules/data_module.R")
 source("modules/analysis_module.R")
