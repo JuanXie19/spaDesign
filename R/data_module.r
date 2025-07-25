@@ -39,59 +39,62 @@ dataInputUI <- function(id) {
 
 dataInputServer <- function(id, reference_data) {
   moduleServer(id, function(input, output, session) {
+  
+	# update choices for reference data once
     updateSelectInput(session, "reference_dataset", choices = names(reference_data))
     
-    data_obj <- reactiveVal(NULL)
-    need_clusters <- reactiveVal(FALSE)
-    coords_cache <- reactiveVal(NULL)
-    counts_cache <- reactiveVal(NULL)
-    
-    observe({
-      if (input$data_source == "reference") {
+	 #================================================================
+    # 1. Reactive for Raw Data Input
+    #    - This reactive's job is to return a list containing the raw
+    #      counts and coordinates, whether from reference or upload.
+    #    - It only re-runs if the data source or selected files change.
+    #================================================================
+	raw_data <- reactive({
+		if (input$data_source == "reference") {
         req(input$reference_dataset)
-        data_obj(reference_data[[input$reference_dataset]])
-        need_clusters(FALSE)
-      }
-    })
-    
-    observeEvent({
-      input$expr_file
-      input$coord_file
-    }, {
-      req(input$expr_file, input$coord_file)
-      counts <- readRDS(input$expr_file$datapath)
-      coords <- readRDS(input$coord_file$datapath)
-      counts_cache(counts)
-      coords_cache(coords)
-      
-      # Check for 'domain'
-      if (!"domain" %in% colnames(coords)) {
-        need_clusters(TRUE)
+        data <- reference_data[[input$reference_dataset]]
+        # Assuming reference data is a list with 'counts' and 'coords'
+        return(list(counts = data@refCounts, coords = data@refcolData, needs_clustering = FALSE))
       } else {
-        need_clusters(FALSE)
+        req(input$expr_file, input$coord_file)
+        coords <- readRDS(input$coord_file$datapath)
+        counts <- readRDS(input$expr_file$datapath)
+        
+        # Check if clustering is needed
+        needs_clustering <- !"domain" %in% colnames(coords)
+        
+        return(list(counts = counts, coords = coords, needs_clustering = needs_clustering))
       }
-    })
-    
-    # provide UI output to show n_clusters input only when needed
+	})
+	
+	#================================================================
+    # 2. UI Logic for Clustering
+    #    - This output controls the visibility of the n_clusters input.
+    #    - It's based on the `needs_clustering` flag from the raw_data() reactive.
+    #================================================================
     output$need_clusters_ui <- reactive({
-      need_clusters()
+      raw_data()$needs_clustering
     })
     outputOptions(output, "need_clusters_ui", suspendWhenHidden = FALSE)
-    
-    observeEvent({
-      coords_cache()
-      counts_cache()
-      input$n_clusters
-    }, {
-      req(counts_cache(), coords_cache())
-      counts <- counts_cache()
-      coords <- coords_cache()
+	
+	#================================================================
+    # 3. Reactive for Processed Coordinates
+    #    - This reactive takes the raw coordinates and, if necessary,
+    #      runs the expensive Seurat clustering to add the 'domain' column.
+    #    - This step is now isolated and only runs when the raw data changes
+    #      or the number of clusters is adjusted.
+    #================================================================
+    processed_coords <- reactive({
+      data <- raw_data()
+      coords <- data$coords
       
-      # if need_clusters, run clustering
-      if (need_clusters()) {
-        req(input$n_clusters)
+      if (data$needs_clustering) {
+        req(input$n_clusters, input$n_clusters > 1)
+        counts <- data$counts
         
         withProgress(message = "Running clustering to predict domains...", {
+          # --- Seurat Clustering Pipeline ---
+          # (Your original Seurat code is perfect here)
           library(Seurat)
           library(SeuratObject)
           seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
@@ -112,38 +115,67 @@ dataInputServer <- function(id, reference_data) {
           new_labels <- clust2
           names(new_labels) <- levels(seurat)
           
-          # map to coords
           clusters <- Idents(seurat)
           coords$domain <- new_labels[as.character(clusters[colnames(counts)])]
         })
       }
-      
-      logfc_cutoff <- if (isTRUE(input$show_advanced)) input$logfc_cutoff else 0.7
-      mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
-      max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
-      
-      # Now build shinyDesign pipeline
-      withProgress(message = "Creating design object...", {
-        DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)
-      })
-      withProgress(message = "Running feature selection...", {
-        DATA <- shinyDesign2::featureSelection(DATA,
-                                               logfc_cutoff = logfc_cutoff,
-                                               mean_in_cutoff = mean_in_cutoff,
-                                               max_num_gene = max_num_gene)
-      })
-      withProgress(message = "Fitting FG model...", {
-        DATA <- estimation_NNGP(DATA, n_neighbors = 10, ORDER = 'AMMD')
-      })
-      withProgress(message = "Fitting BRISC model...", {
-        DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1)
-      })
-      data_obj(DATA)
+      return(coords)
+    })
+	
+	#================================================================
+    # 4. Final Reactive: The Main Logic Branch
+    #    - If reference data is selected, it's returned immediately.
+    #    - If data is uploaded, this triggers the full processing pipeline.
+    #================================================================
+    final_data_obj <- reactive({
+      if (input$data_source == "reference") {
+        # --- PATH 1: REFERENCE DATA ---
+        # Data is pre-processed, just return it.
+        req(input$reference_dataset)
+        return(reference_data[[input$reference_dataset]])
+        
+      } else {
+        # --- PATH 2: UPLOADED DATA ---
+        # Run the full pipeline on the new data.
+        counts <- raw_data()$counts
+        coords <- processed_coords()
+        req(counts, coords)
+        
+        # Get advanced parameters
+        logfc_cutoff <- if (isTRUE(input$show_advanced)) input$logfc_cutoff else 0.7
+        mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
+        max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
+        
+        # Now build shinyDesign pipeline
+        withProgress(message = "Creating design object...", {
+          DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)
+        })
+        withProgress(message = "Running feature selection...", {
+          DATA <- shinyDesign2::featureSelection(DATA,
+                                                 logfc_cutoff = logfc_cutoff,
+                                                 mean_in_cutoff = mean_in_cutoff,
+                                                 max_num_gene = max_num_gene)
+        })
+        withProgress(message = "Fitting FG model...", {
+          DATA <- estimation_NNGP(DATA, n_neighbors = 10, ORDER = 'AMMD')
+        })
+        withProgress(message = "Fitting BRISC model...", {
+          DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1)
+        })
+        
+        return(DATA)
+      }
     })
     
+    #================================================================
+    # 5. Outputs
+    #    - These render functions now depend on the final reactive object,
+    #      which works for both reference and uploaded data paths.
+    #================================================================
     output$summary_ref <- renderPrint({
-      req(data_obj())
-      obj <- data_obj()
+      obj <- final_data_obj()
+      req(obj)
+      
       expr <- obj@refCounts
       coords <- obj@refcolData
       ngenes <- nrow(expr)
@@ -159,12 +191,15 @@ dataInputServer <- function(id, reference_data) {
     })
     
     output$domain_plot <- renderPlot({
-      req(data_obj())
-      df <- data_obj()@refcolData
+      obj <- final_data_obj()
+      req(obj)
+      
+      df <- obj@refcolData
       ggplot(df, aes(x=x, y=y, color=as.factor(domain))) +
         geom_point(size=2) + theme_classic() + labs(title="Spatial domains", x="X", y="Y")
     })
     
-    return(data_obj)
+    # Return the final reactive object for use in other modules
+    return(final_data_obj)
   })
 }
