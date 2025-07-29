@@ -44,7 +44,7 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
 
     DOMAIN <- sort(unique(loc_file$domain))
 	RST <- mclapply(seq_along(DOMAIN), function(d){
-		coords_sub <- coords_norm %>% filter(domain == DOMAIN[d])
+		coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
 		FIT <- select_best_M(x = as.matrix(coords_sub[, c('x', 'y')]), M_candidates = M_candidates, iter_max = iter_max, tol = tol)
 		return(FIT)	
 	}, mc.cores = 4)
@@ -52,8 +52,8 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
     message('Completed fitting Fisher-Gaussian mixture models for all domains')
     names(RST) <- DOMAIN
     shinyDesign@paramsFG <- RST
-	shinyDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
-	shinyDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
+	  shinyDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
+	  shinyDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
     return(shinyDesign)
 }
 

@@ -23,7 +23,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
 	count_matrix <- refCounts(shinyDesign)
 	loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
 	
-	FC_list <- geneSummary_par(count_matrix, loc_file)
+	FC_list <- geneSummary(count_matrix, loc_file)
 	
 	top_genes <- mclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")

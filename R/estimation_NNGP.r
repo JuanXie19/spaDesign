@@ -15,7 +15,7 @@
 #' @examples
 #' ## Example usage
 #' toyDATA <- createshinyDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-#' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD', verbose = FALSE)
+#' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, ORDER = 'AMMD', verbose = FALSE)
 #'
 
 estimation_NNGP <- function(shinyDesign, n_neighbors = 10, ORDER = 'AMMD',X = NULL, verbose = FALSE){
