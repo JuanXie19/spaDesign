@@ -20,7 +20,7 @@
 
 library(parallel)
 
-powerAnalysisSpatial <- function(shinyDesign, prop_range, seq_depth_range, n_rep) {
+powerAnalysisSpatial <- function(shinyDesign, SIGMA, prop_range, seq_depth_range, n_rep) {
     # Create a data frame of all combinations of es_range, seq_depth_range, and n_rep
     param_grid <- expand.grid(seq_depth = seq_depth_range, 
                               prop = prop_range, 
@@ -32,12 +32,10 @@ powerAnalysisSpatial <- function(shinyDesign, prop_range, seq_depth_range, n_rep
         seq_depth_factor <- as.numeric(row["seq_depth"])
         SEED <- as.numeric(row["SEED"])
 		
-		# current just allow SIGMA = 1
-		SIGMA <- 1
-        
+
         message(sprintf("Simulating data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
-        DATA <- simulation_patial(shinyDesign, seq_depth_factor, SIGMA, SEED, prop)
+        DATA <- simulation_Spatial(shinyDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop)
         
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
@@ -51,17 +49,10 @@ powerAnalysisSpatial <- function(shinyDesign, prop_range, seq_depth_range, n_rep
                    total_counts = total_counts, NMI = NMI)
     }
     
-    
-    
-    num_cores <- min(detectCores()-2, 8)
-    cl <- makeCluster(num_cores)
+
   
-    results_list <- foreach(i = 1:nrow(param_grid), .combine = rbind, .packages = 'shinyDesign') %dopar% {
-        process_row(param_grid[i, ])
-    }
-    
-    # Combine the results into a single data frame
-    results <- do.call(rbind, results_list)
-    results.t <- as.data.frame(t(results))
-    return(results.t)
+    results <- mclapply(1:nrow(param_grid), function(i){
+      process_row(param_grid[i, ])
+    }, mc.cores = 4)
+    results <- do.call(rbind, results)
 }
