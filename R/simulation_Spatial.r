@@ -86,17 +86,19 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
         GP.par <- par_GP[[d]]
 
         simulate_base_count(SEED, seqDepth_factor, domain, GP.par, count_matrix, coords_norm)        
-        })%>% Reduce('rbind', .)
+        })
+    base_count <- do.call(rbind, base_count)
     
     ## simulate count matrix where the spots location are disturbed
     message('Simulating count matrix for disturbed spots location...')
-    worse_count <- pbapply::pblapply(seq_along(par_GP), function(d){
+    worse_count <- pbmclapply(seq_along(par_GP), function(d){
         domain <- names(par_GP)[d]
         GP.par <- par_GP[[d]]
         FG.par <- FG_selected_model[[d]]
 
         simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
-        }) %>% Reduce('rbind', .)
+        }, mc.cores = 4)
+    worse_count <- do.call('rbind', worse_count)
 
     generateCount <- function(){
         COUNT <- lapply(seq_along(par_GP), function(d){
@@ -111,7 +113,8 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
             rownames(count_combined) <- c(rownames(count.base)[keep.idx],rownames(count.worst)[-keep.idx])
             count_combined <- count_combined[order(match(rownames(count_combined),rownames(count.base))),]
             return(count_combined)
-        })%>% Reduce('rbind', .)
+        })
+        COUNT <- do.call('rbind', COUNT)
 	return(COUNT)
     }
 	
