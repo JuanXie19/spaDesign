@@ -121,7 +121,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
 	REPEAT <- 1000
 	#COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
 	COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
-	COUNT.SIM <- COUNT.SIM %>% Reduce("+", .)/REPEAT
+	COUNT.SIM <- do.call('rbind', COUNT.SIM)/REPEAT
 	
 	message("Simulation complete.\n")
 	shinyDesign@simCounts <- COUNT.SIM
@@ -137,7 +137,6 @@ simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_
   b.condition <- mean_in(SEED, coords_norm_sub, nnGP_fit)
   
   ## inside domain, seq depth R
-  set.seed(SEED)
   y.post <- rpois(n = nrow(coords_norm_sub), lambda = seqDepth_factor * b.condition)
   return(y.post)
 }
