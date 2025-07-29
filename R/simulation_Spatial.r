@@ -62,21 +62,20 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
 	}
 	names(FG_selected_model) <- names(shinyDesign@paramsFG)
 	
-    par_FG <- paramsFG(shinyDesign)
+  par_FG <- paramsFG(shinyDesign)
     
-    # Check if par_GP and par_FG exist and are not NULL
-    if (is.null(par_GP) || is.null(par_FG)) {
+  # Check if par_GP and par_FG exist and are not NULL
+  if (is.null(par_GP) || is.null(par_FG)) {
         stop("par_GP and/or par_FG do not exist or are NULL.Please run parameter estimation first")
-    }
+  }
     
-    #message("Starting simulation...")
     
-    ## scale the coordinates to [0,1] range
-    coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-    coords_norm <- as.data.frame(coords_norm)
-    coords_norm$domain <- loc_file$domain
+  ## scale the coordinates to [0,1] range
+  coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+  coords_norm <- as.data.frame(coords_norm)
+  coords_norm$domain <- loc_file$domain
     
-    seqDepth_factor <- seq_depth_factor
+  seqDepth_factor <- seq_depth_factor
     
     
     message('Simualting baseline count matrix for all domain-informative genes...')
@@ -117,7 +116,10 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     }
 	
 	REPEAT <- 1000
-	COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
+	#COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
+	COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
+	COUNT.SIM <- COUNT.SIM %>% Reduce("+", .)/REPEAT
+	
 	message("Simulation complete.\n")
 	shinyDesign@simCounts <- COUNT.SIM
 	shinyDesign@simcolData <- refcolData(shinyDesign)
