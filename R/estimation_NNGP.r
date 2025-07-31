@@ -15,7 +15,7 @@
 #' @examples
 #' ## Example usage
 #' toyDATA <- createshinyDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-#' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD', verbose = FALSE)
+#' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, ORDER = 'AMMD', verbose = FALSE)
 #'
 
 estimation_NNGP <- function(shinyDesign, n_neighbors = 10, ORDER = 'AMMD',X = NULL, verbose = FALSE){
@@ -35,9 +35,8 @@ estimation_NNGP <- function(shinyDesign, n_neighbors = 10, ORDER = 'AMMD',X = NU
         stop("topGenes is NULL or empty. Check the shinyDesign object.")
     }
     
-    RST <- list()
-    for (i in seq_along(topGenes)){
-        d <- names(topGenes)[i] # the domain name
+    RST <- lapply(seq_along(topGenes), function(i){
+		d <- names(topGenes)[i] # the domain name
         idx <- which(coords_norm$domain == d) # fit the model for within domain expression
 		coords_norm_sub <- coords_norm[idx, ]  # domain coordinates
 		
@@ -47,9 +46,7 @@ estimation_NNGP <- function(shinyDesign, n_neighbors = 10, ORDER = 'AMMD',X = NU
           next
         }
 		
-		FIT <- list()
-		for(g in 1:length(GENES)){
-			gene <- GENES[g]
+		FIT <- lapply(GENES, function(gene){
 			counts.gene <- count_matrix[rownames(count_matrix) == gene, , drop = FALSE]
 			counts.sub <- counts.gene[idx] # informative gene within-domain gene expression
 			test.data <- data.frame(gene = counts.sub,
@@ -64,11 +61,12 @@ estimation_NNGP <- function(shinyDesign, n_neighbors = 10, ORDER = 'AMMD',X = NU
 							n_neighbors = n_neighbors,
 							order = ORDER,
 							verbose = verbose)
-			FIT[[g]] <- GPrst
-		}
+			return(GPrst)
+		})		
 		names(FIT) <- GENES
-		RST[[i]] <- FIT
-    }
+		return(FIT)
+    })
+	
     names(RST) <- names(topGenes)
     
     shinyDesign@paramsGP <- RST

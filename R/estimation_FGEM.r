@@ -15,6 +15,7 @@
 #' @import movMF
 #' @import Rfast
 #' @import truncnorm
+#' @import parallel
 #' @export
 #' @examples
 #' # Assuming shinyDesign is a valid shinyDesign object
@@ -42,18 +43,17 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
     coords_norm$domain <- loc_file$domain
 
     DOMAIN <- sort(unique(loc_file$domain))
-	RST <- list()
-	for (d in 1:length(DOMAIN)){
-		coords_sub <- coords_norm %>% filter(domain == DOMAIN[d])
+	RST <- mclapply(seq_along(DOMAIN), function(d){
+		coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
 		FIT <- select_best_M(x = as.matrix(coords_sub[, c('x', 'y')]), M_candidates = M_candidates, iter_max = iter_max, tol = tol)
-		RST[[d]] <- FIT
-	}
-    
+		return(FIT)	
+	}, mc.cores = 4)
+	   
     message('Completed fitting Fisher-Gaussian mixture models for all domains')
     names(RST) <- DOMAIN
     shinyDesign@paramsFG <- RST
-	shinyDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
-	shinyDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
+	  shinyDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
+	  shinyDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
     return(shinyDesign)
 }
 

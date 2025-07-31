@@ -25,7 +25,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
 	
 	FC_list <- geneSummary(count_matrix, loc_file)
 	
-	top_genes <- pbapply::pblapply(FC_list, function(DF) {
+	top_genes <- mclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 
@@ -44,7 +44,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
         }
         message("Completed gene selection")
         return(selected_genes)
-    })
+    }, mc.cores = 4)
     names(top_genes) <- names(FC_list)
     message("Completed gene selection for all domains.")
 	shinyDesign@topGenes <- top_genes
@@ -66,7 +66,7 @@ geneSummary <- function(count_matrix, loc){
 	domains <- sort(unique(loc$domain))
 	log_count <- log(count_matrix + 1)
 	
-	fc_results <- pblapply(domains, function(domain) {
+	fc_results <- mclapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
         rst <- sapply(seq_len(nrow(log_count)), function(gene) {
             spot_idx <- which(loc$domain == domain)
@@ -88,7 +88,7 @@ geneSummary <- function(count_matrix, loc){
         colnames(rst) <- c("logFC", "logFC_low", "mean_in", "mean_out", "mean_out_low")
         message("Completed fold change calculation for domain: ", domain)
         rst
-    })
+    }, mc.cores = 4)
     names(fc_results) <- domains
     message("Completed fold change calculations for all domains")
     return(fc_results)
