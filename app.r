@@ -14,7 +14,7 @@ reference_data <- list(
 
 options(shiny.maxRequestSize = 300 * 1024^2)
 
-ui <- navbarPage("Spatial Sequencing Analysis",
+ui <- navbarPage("Spatial Transcriptomics Experimental Design",
   tabPanel("Data Input",
     dataInputUI("data_input")
   ),
