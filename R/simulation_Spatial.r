@@ -91,6 +91,9 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     
     ## simulate count matrix where the spots location are disturbed
     message('Simulating count matrix for disturbed spots location...')
+    
+    library(dplyr)
+    library(pdist)
     worse_count <- pbmclapply(seq_along(par_GP), function(d){
         domain <- names(par_GP)[d]
         GP.par <- par_GP[[d]]
