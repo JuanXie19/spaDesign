@@ -3,15 +3,16 @@ library(ggplot2)
 library(shinyDesign2)
 library(DT)
 library(shinyBS)
+library(hdf5r)
 
-source("modules/data_module.R")
-source("modules/analysis_module.R")
 
 # Load reference data ONCE
 reference_data <- list(
-  "Chicken Heart" = readRDS('C:/Users/xie15/OneDrive/Documents/GitHub/shinyDesign2/inst/extdata/ref_chicken_heart.rds'),
-  "Human Brain" = readRDS('C:/Users/xie15/OneDrive/Documents/GitHub/shinyDesign2/inst/extdata/ref_human_brain.rds')
+  "Chicken Heart" = readRDS('/Users/xie.1097/Documents/GitHub/shinyDesign2/inst/extdata//ref_chicken_heart.rds'),
+  "Human Brain" = readRDS('/Users/xie.1097/Documents/GitHub/shinyDesign2/inst/extdata/ref_human_brain.rds')
 )
+
+options(shiny.maxRequestSize = 300 * 1024^2)
 
 ui <- navbarPage("Spatial Sequencing Analysis",
   tabPanel("Data Input",
