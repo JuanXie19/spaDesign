@@ -22,23 +22,28 @@ dataInputUI <- function(id) {
         fileInput(ns("positions_file"), "Upload tissue_positions_list.csv file", accept = '.csv'),
         fileInput(ns("anno_file"), "Upload annotations (.csv, optional):"),
         
+        # conditional panel for n_clusters.It shows up only if data source is 'upload' AND annotation file is not provided
+        conditionalPanel(
+          condition = sprintf("input['%s'] == 'upload' && !input['%s']", ns("data_source"), ns("anno_file")),
+          numericInput(ns("n_clusters"), "Number of expected clusters:", value = 7, min=2, step=1)
+        ),
+        
         checkboxInput(ns("show_advanced"), "Show advanced feature selection options", value = FALSE),
         conditionalPanel(
           condition = sprintf("input['%s']", ns("show_advanced")),
           sliderInput(ns("logfc_cutoff"), "logFC cutoff:", min=0.1, max=2, value=0.7, step=0.1),
           sliderInput(ns("mean_in_cutoff"), "Mean in cutoff:", min=0.5, max=5, value=1.8, step=0.1),
           numericInput(ns("max_num_gene"), "Max number of genes:", value=10, min=1, step=1)
-        )
-      ),
-      # NEW: number of clusters if clustering needed
-      conditionalPanel(
-        condition = sprintf("output['%s']", ns("need_clusters_ui")),
-        numericInput(ns("n_clusters"), "Number of expected clusters:", value = 7, min=2, step=1)
+        ),
+        
+        # action button to triggole the analysis
+        hr(),
+        actionButton(ns('prepare_data_button'), "Run Data Preparation", class =  "btn-primary")
       )
     ),
     mainPanel(
-      verbatimTextOutput(ns("summary_ref")),
-      plotOutput(ns("domain_plot"))
+      plotOutput(ns("domain_plot")),
+      verbatimTextOutput(ns("summary_ref"))
     )
   )
 }
@@ -60,13 +65,13 @@ dataInputServer <- function(id, reference_data) {
         req(input$reference_dataset)
         data <- reference_data[[input$reference_dataset]]
         # Assuming reference data is a list with 'counts' and 'coords'
-        return(list(counts = data@refCounts, coords = data@refcolData, needs_clustering = FALSE))
+        return(list(counts = data@refCounts, coords = data@refcolData))
       } else {
-        
         req(input$h5_file, input$positions_file)
         # read Space ranger files
         withProgress(message = 'Reading uploaded data...', {
-          # Read matrix.mtx
+          # Read h5 file
+          library(Seurat)
           counts <- Read10X_h5(filename = input$h5_file$datapath)
          
           # Read tissue_positions_list.csv
@@ -91,70 +96,140 @@ dataInputServer <- function(id, reference_data) {
           counts <- counts[, common_barcodes]
           coords <- coords[common_barcodes, ]
           
-          # Check if clustering is needed (i.e., 'domain' column is missing)
-          needs_clustering <- !"domain" %in% colnames(coords)
-          
-          return(list(counts = counts, coords = coords, needs_clustering = needs_clustering))
+          return(list(counts = counts, coords = coords))
           
         })
       }
 	})
 	
+	
+	# reactive to check if annotation file is provided
+	anno_provided <- reactive({
+	  # reactive on the fileInput value, which is a list
+	  # if the file is not selected, the list will be NULL
+	  !is.null(input$anno_file)
+	})
+	
 	#================================================================
     # 2. UI Logic for Clustering
     #    - This output controls the visibility of the n_clusters input.
-    #    - It's based on the `needs_clustering` flag from the raw_data() reactive.
+    #    - It's based on the `anno_provided` flag
     #================================================================
-    output$need_clusters_ui <- reactive({
-      raw_data()$needs_clustering
-    })
-    outputOptions(output, "need_clusters_ui", suspendWhenHidden = FALSE)
+	  output$need_clusters_ui <- reactive({
+	    input$data_source == "upload" && !is.null(raw_data()) && !anno_provided()
+	  })
+	  outputOptions(output, "need_clusters_ui", suspendWhenHidden = FALSE)
+	
 	
 	#================================================================
     # 3. Reactive for Processed Coordinates
-    #    - This reactive takes the raw coordinates and, if necessary,
-    #      runs the expensive Seurat clustering to add the 'domain' column.
-    #    - This step is now isolated and only runs when the raw data changes
-    #      or the number of clusters is adjusted.
+    #    - This reactive has two branches
+    #     1. if 'anno_provided()' is TRUE, read the file and join
+    #     2. if 'anno_provided()' is FALSE, run Seurat clustering
     #================================================================
     processed_coords <- reactive({
+      req(raw_data())
       data <- raw_data()
       coords <- data$coords
       
-      if (data$needs_clustering) {
-        req(input$n_clusters, input$n_clusters > 1)
-        counts <- data$counts
+      if (input$data_source =='upload') {
+        if(anno_provided()) {
+          # branch 1: use provided annotations
+          withProgress(message = 'Reading user-provided annotations...', {
+            anno_data <- fread(input$anno_file$datapath, header = TRUE)
+            req(colnames(anno_data) %in% c('barcode', 'domain'))
+            
+            # ensure barcodes in anno_data match thosee in coords
+            common_barcodes <- intersect(rownames(coords), anno_data$barcode)
+            if (length(common_barcodes) == 0) {
+              stop("No common barcodes found between spatial coordinates and annotation file. Please check your files.")
+            }
+            
+            # Merge annotations with coordinates
+            coords$barcode <- rownames(coords)
+            coords <- merge(coords, anno_data, by = "barcode", all.x = TRUE)
+            rownames(coords) <- coords$barcode
+            coords$barcode <- NULL
+            
+            # Remove spots without an annotation
+            coords <- coords[!is.na(coords$domain), ]
+          })
+        } else{
+          # branch 2: no annotation provided, so run clustering
+          req(input$n_clusters, input$n_clusters > 1)
+          counts <- data$counts
         
-        withProgress(message = "Running clustering to predict domains...", {
+          withProgress(message = "Running clustering to predict domains...", {
           # --- Seurat Clustering Pipeline ---
-          # (Your original Seurat code is perfect here)
-          library(Seurat)
-          library(SeuratObject)
-          seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
-          seurat <- NormalizeData(seurat)
-          seurat <- FindVariableFeatures(seurat, selection.method = 'vst')
-          all.genes <- rownames(seurat)
-          seurat <- ScaleData(seurat, features = all.genes)
-          seurat <- RunPCA(seurat)
-          seurat <- RunUMAP(seurat, dims = 1:30)
-          seurat <- FindNeighbors(seurat, dims = 1:30)
-          seurat <- FindClusters(seurat, resolution = 2)
+            library(Seurat)
+            library(SeuratObject)
+            seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
+            seurat <- NormalizeData(seurat)
+            seurat <- FindVariableFeatures(seurat, selection.method = 'vst')
+            all.genes <- rownames(seurat)
+            seurat <- ScaleData(seurat, features = all.genes)
+            seurat <- RunPCA(seurat)
+            seurat <- RunUMAP(seurat, dims = 1:30)
+            seurat <- FindNeighbors(seurat, dims = 1:30)
+            seurat <- FindClusters(seurat, resolution = 2)
           
-          X <- Seurat::AggregateExpression(seurat, assays=DefaultAssay(seurat),
+            X <- Seurat::AggregateExpression(seurat, assays=DefaultAssay(seurat),
                                            slot="scale.data", group.by="seurat_clusters")[[1]]
-          dist1 <- dist(t(X))
-          hclust1 <- hclust(dist1)
-          clust2 <- cutree(hclust1, k = input$n_clusters)
-          new_labels <- clust2
-          names(new_labels) <- levels(seurat)
+            dist1 <- dist(t(X))
+            hclust1 <- hclust(dist1)
+            clust2 <- cutree(hclust1, k = input$n_clusters)
+            new_labels <- clust2
+            names(new_labels) <- levels(seurat)
           
-          clusters <- Idents(seurat)
-          coords$domain <- new_labels[as.character(clusters[colnames(counts)])]
+            clusters <- Idents(seurat)
+            coords$domain <- new_labels[as.character(clusters[colnames(counts)])]
         })
+        }
       }
       return(coords)
     })
 	
+	  #=====================
+	  #. event Reactive that runs only when button click
+	  #=====================
+	  processed_design_object <- eventReactive(input$prepare_data_button, {
+	    req(input$data_source == 'upload')
+	    counts <- raw_data()$counts
+	    coords <- processed_coords()
+	    req(counts, coords)
+	    
+	    logfc_cutoff <- if (isTRUE(input$show_advanced)) input$logfc_cutoff else 0.7
+	    mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
+	    max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
+	    
+	    nullfile <- tempfile()
+	    sink(nullfile)
+	    
+	    tryCatch({
+	      withProgress(message = "Creating design object...", {
+	        DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)
+	      })
+	      withProgress(message = "Selecting domain informative genes...", {
+	        DATA <- shinyDesign2::featureSelection(DATA,
+	                                               logfc_cutoff = logfc_cutoff,
+	                                               mean_in_cutoff = mean_in_cutoff,
+	                                               max_num_gene = max_num_gene)
+	      })
+	      withProgress(message = "Learning gene spatial expression patterns...", {
+	        DATA <- estimation_NNGP(DATA, n_neighbors = 10, ORDER = 'AMMD')
+	      })
+	      withProgress(message = "Learning domain spatial patterns...", {
+	        DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1)
+	      })
+	      
+	      return(DATA)
+	    }, finally = {
+	      sink(type = 'message')
+	      sink()
+	    })
+	  })
+	  
+	  
 	#================================================================
     # 4. Final Reactive: The Main Logic Branch
     #    - If reference data is selected, it's returned immediately.
@@ -168,44 +243,7 @@ dataInputServer <- function(id, reference_data) {
         return(reference_data[[input$reference_dataset]])
         
       } else {
-        # --- PATH 2: UPLOADED DATA ---
-        # Run the full pipeline on the new data.
-        counts <- raw_data()$counts
-        coords <- processed_coords()
-        req(counts, coords)
-        
-        # Get advanced parameters
-        logfc_cutoff <- if (isTRUE(input$show_advanced)) input$logfc_cutoff else 0.7
-        mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
-        max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
-        
-        # create a temporary file to sink the output
-        nullfile <- tempfile()
-        sink(nullfile)
-        
-        tryCatch({
-        # Now build shinyDesign pipeline
-        withProgress(message = "Creating design object...", {
-          DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)
-        })
-        withProgress(message = "Running feature selection...", {
-          DATA <- shinyDesign2::featureSelection(DATA,
-                                                 logfc_cutoff = logfc_cutoff,
-                                                 mean_in_cutoff = mean_in_cutoff,
-                                                 max_num_gene = max_num_gene)
-        })
-        withProgress(message = "Fitting BRISC model...", {
-          DATA <- estimation_NNGP(DATA, n_neighbors = 10, ORDER = 'AMMD')
-        })
-        withProgress(message = "Fitting FG model...", {
-          DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1)
-        })
-        
-        return(DATA)
-        }, finally = {
-        sink(type = 'message')
-        sink()
-        })
+        return(processed_design_object())
       }
     })
     
