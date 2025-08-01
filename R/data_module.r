@@ -1,3 +1,8 @@
+library(shiny)
+library(ggplot2)
+library(Matrix)
+library(data.table)
+
 dataInputUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
@@ -12,9 +17,10 @@ dataInputUI <- function(id) {
       ),
       conditionalPanel(
         condition = sprintf("input['%s'] == 'upload'", ns("data_source")),
-        fileInput(ns("expr_file"), "Upload expression matrix (.rds):"),
-        fileInput(ns("coord_file"), "Upload coordinates (.rds):"),
-        fileInput(ns("anno_file"), "Upload annotations (.rds, optional):"),
+        h4('Upload SpaceRanger Output Files'),
+        fileInput(ns("h5_file"), "Choose filtered_feature_bc_matrix.h5 file", accept = ".h5"),
+        fileInput(ns("positions_file"), "Upload tissue_positions_list.csv file", accept = '.csv'),
+        fileInput(ns("anno_file"), "Upload annotations (.csv, optional):"),
         
         checkboxInput(ns("show_advanced"), "Show advanced feature selection options", value = FALSE),
         conditionalPanel(
@@ -27,7 +33,7 @@ dataInputUI <- function(id) {
       # NEW: number of clusters if clustering needed
       conditionalPanel(
         condition = sprintf("output['%s']", ns("need_clusters_ui")),
-        numericInput(ns("n_clusters"), "Number of expected clusters:", value = 5, min=2, step=1)
+        numericInput(ns("n_clusters"), "Number of expected clusters:", value = 7, min=2, step=1)
       )
     ),
     mainPanel(
@@ -56,14 +62,41 @@ dataInputServer <- function(id, reference_data) {
         # Assuming reference data is a list with 'counts' and 'coords'
         return(list(counts = data@refCounts, coords = data@refcolData, needs_clustering = FALSE))
       } else {
-        req(input$expr_file, input$coord_file)
-        coords <- readRDS(input$coord_file$datapath)
-        counts <- readRDS(input$expr_file$datapath)
         
-        # Check if clustering is needed
-        needs_clustering <- !"domain" %in% colnames(coords)
-        
-        return(list(counts = counts, coords = coords, needs_clustering = needs_clustering))
+        req(input$h5_file, input$positions_file)
+        # read Space ranger files
+        withProgress(message = 'Reading uploaded data...', {
+          # Read matrix.mtx
+          counts <- Read10X_h5(filename = input$h5_file$datapath)
+         
+          # Read tissue_positions_list.csv
+          # Assuming standard SpaceRanger tissue_positions_list.csv format:
+          # barcode, in_tissue, array_row, array_col, px_row_in_full_image, px_col_in_full_image
+          coords_raw <- fread(input$positions_file$datapath, header = FALSE)
+          colnames(coords_raw) <- c("barcode", "in_tissue", "array_row", "array_col", "px_row", "px_col")
+          
+          # Filter for spots "in_tissue" and select relevant columns for coords
+          coords <- coords_raw[coords_raw$in_tissue == 1, ]
+          coords <- data.frame(
+            row.names = coords$barcode,
+            x = coords$px_row, # Use pixel column as x
+            y = coords$px_col  # Use pixel row as y
+          )
+          
+          # Ensure barcodes match between counts and coords
+          common_barcodes <- intersect(colnames(counts), rownames(coords))
+          if (length(common_barcodes) == 0) {
+            stop("No common barcodes found between expression data (H5) and spatial coordinates. Please check your uploaded files.")
+          }
+          counts <- counts[, common_barcodes]
+          coords <- coords[common_barcodes, ]
+          
+          # Check if clustering is needed (i.e., 'domain' column is missing)
+          needs_clustering <- !"domain" %in% colnames(coords)
+          
+          return(list(counts = counts, coords = coords, needs_clustering = needs_clustering))
+          
+        })
       }
 	})
 	
@@ -146,6 +179,11 @@ dataInputServer <- function(id, reference_data) {
         mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
         max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
         
+        # create a temporary file to sink the output
+        nullfile <- tempfile()
+        sink(nullfile)
+        
+        tryCatch({
         # Now build shinyDesign pipeline
         withProgress(message = "Creating design object...", {
           DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)
@@ -156,14 +194,18 @@ dataInputServer <- function(id, reference_data) {
                                                  mean_in_cutoff = mean_in_cutoff,
                                                  max_num_gene = max_num_gene)
         })
-        withProgress(message = "Fitting FG model...", {
+        withProgress(message = "Fitting BRISC model...", {
           DATA <- estimation_NNGP(DATA, n_neighbors = 10, ORDER = 'AMMD')
         })
-        withProgress(message = "Fitting BRISC model...", {
+        withProgress(message = "Fitting FG model...", {
           DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1)
         })
         
         return(DATA)
+        }, finally = {
+        sink(type = 'message')
+        sink()
+        })
       }
     })
     
