@@ -10,7 +10,7 @@ dataInputUI <- function(id) {
       
    
       radioButtons(ns("data_source"), "Choose data source:",
-                   choices = c("Use reference data" = "reference",
+                   choices = c("Use reference Data" = "reference",
                                "Upload your own data" = "upload"),
                    selected = "reference"),
       conditionalPanel(
@@ -27,7 +27,7 @@ dataInputUI <- function(id) {
         # conditional panel for n_clusters.It shows up only if data source is 'upload' AND annotation file is not provided
         conditionalPanel(
           condition = sprintf("input['%s'] == 'upload' && !input['%s']", ns("data_source"), ns("anno_file")),
-          numericInput(ns("n_clusters"), "Number of expected clusters:", value = 7, min=2, step=1)
+          numericInput(ns("n_clusters"), "Number of expected spatial domains:", value = 7, min=2, step=1)
         ),
         
         checkboxInput(ns("show_advanced"), "Show advanced feature selection options", value = FALSE),
@@ -277,7 +277,8 @@ dataInputServer <- function(id, reference_data) {
       req(obj)
       
       df <- obj@refcolData
-      ggplot(df, aes(x=x, y=y, color=as.factor(domain))) +
+      df$domain <- as.factor(df$domain)
+      ggplot(df, aes(x=x, y=y, color=domain)) +
         geom_point(size=2) + theme_classic() + labs(title="Spatial domains", x="X", y="Y")
     })
     
