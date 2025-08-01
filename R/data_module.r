@@ -7,6 +7,8 @@ dataInputUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
     sidebarPanel(
+      
+   
       radioButtons(ns("data_source"), "Choose data source:",
                    choices = c("Use reference data" = "reference",
                                "Upload your own data" = "upload"),
