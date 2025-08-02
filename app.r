@@ -4,6 +4,7 @@ library(shinyDesign2)
 library(DT)
 library(shinyBS)
 library(hdf5r)
+library(scam)
 
 
 # Load reference data ONCE

@@ -13,7 +13,7 @@ analysisUI <- function(id) {
           # Input element for the checkbox
           tags$input(id = ns("add_effect_size"), type = "checkbox", class = "shiny-input-checkbox"),
           # The checkbox text label
-          tags$span("Add Effect Size?"),
+          tags$span("Change effect size?"),
           # The icon right after the text, but within the label
           tags$span(
             id = ns("effect_size_info"),
@@ -42,7 +42,7 @@ analysisUI <- function(id) {
         class = "form-group shiny-input-container", # Important for styling
         tags$label(
           tags$input(id = ns("add_spatial"), type = "checkbox", class = "shiny-input-checkbox"),
-          tags$span("Add Spatial Perturbation?"),
+          tags$span("Add spatial perturbation?"),
           tags$span(
             id = ns("spatial_info"),
             icon("info-circle")
@@ -59,7 +59,6 @@ analysisUI <- function(id) {
         condition = sprintf("input['%s']", ns("add_spatial")),
         sliderInput(ns("sigma"), "Sigma (spatial variance):", min = 0.5, max = 3, value = 1.5, step = 0.5)
       ),
-      numericInput(ns("n_rep"), "Number of replicates:", value = 5, min = 1, step = 1),
       actionButton(ns("run_sim"), "Run Simulation", class = "btn-primary")
     ),
     mainPanel(
@@ -67,7 +66,7 @@ analysisUI <- function(id) {
       verbatimTextOutput(ns("sim_summary")),
 	  
 	  # add a table summary of the performance vs sequencing depth
-	  tags$h4("Detailed Simulation Results"), # Add a clear heading for the table
+	  tags$h4("Detailed simulation results"), # Add a clear heading for the table
       DT::DTOutput(ns("sim_table")) # Placeholder for the interactive table
     )
   )
@@ -81,77 +80,82 @@ analysisServer <- function(id, data_obj) {
       req(data_obj())
       #seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
 
-      seq_range <- c(1:3, 5,7,10)
+      seq_range <- c(0.5, 1:3, 5,7,10)
       withProgress(message = "Running simulations...", {
-        base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = input$n_rep)
-        base_res$condition <- 'Base'
-		results <- list(base = base_res)
+        base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = 10)
+        base_res$condition <- 'Baseline'
+		    results <- list(base = base_res)
         
         if (input$add_effect_size) {
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
-                                                seq_depth_range = seq_range, n_rep = input$n_rep)
-		  effect_res$condition <- 'Effect size'										
+                                                seq_depth_range = seq_range, n_rep = 10)
+		      effect_res$condition <- 'EffectSize'										
           results$effect <- effect_res
         }
         if (input$add_spatial) {
-          spatial_res <- powerAnalysisSpatial(data_obj(),sigma = input$sigma, prop_range = 0.7,
-                                              seq_depth_range = seq_range, n_rep = input$n_rep)
+          spatial_res <- powerAnalysisSpatial(data_obj(),SIGMA = input$sigma, prop_range = 0.7,
+                                              seq_depth_range = seq_range, n_rep = 10)
           spatial_res$condition <- 'Spatial'
-		  results$spatial <- spatial_res
+		      results$spatial <- spatial_res
         }
         sim_results(results)
       })
     })
-	
-	
-	processed_plot_data <- reactive({
-      req(sim_results()) # Ensure simulations have run
+	  
+    # reactive to combine the raw data from all conditions
+    combined_raw_data <- reactive({
+      req(sim_results())
       results <- sim_results()
-
-      ## helper to compute summary + fit
-      process_curve <- function(df, label){
-        df_sum <- df %>%
-          group_by(seq_depth) %>%
-          summarise(mean_NMI = mean(NMI),
-                    se_NMI = sd(NMI) / sqrt (n()),
-                    .groups = 'drop') %>%
-          mutate(condition = label,
-				mean_NMI = round(mean_NMI,3),
-				se_NMI = round(se_NMI, 3))
-      }
-
-      df_base <- process_curve(results$base, "Base")
-      df_base <- as.data.frame(df_base)
-      list_curves <- list(df_base)
-
-      if (!is.null(results$effect)) {
-        df_effect <- process_curve(results$effect, "Effect size")
-        df_effect <- as.data.frame(df_effect)
-        list_curves <- append(list_curves, list(df_effect))
-      }
-      if (!is.null(results$spatial)) {
-        df_spatial <- process_curve(results$spatial, "Spatial")
-        df_spatial <- as.data.frame(df_spatial)
-        list_curves <- append(list_curves, list(df_spatial))
-      }
-
-      # Combine for ggplot and table
-      bind_rows(list_curves)
+      bind_rows(results)    
     })
-    
-    output$sim_plot <- renderPlot({
-      req(processed_plot_data())
-	  plot_data <- processed_plot_data()
-	  
-	  library(ggplot2)
-	  
-	  ggplot(plot_data, aes(x = seq_depth, y = mean_NMI, color = condition)) + 
-		geom_point() + 
-		geom_smooth(method = 'loess', span = 0.7, se = FALSE) + ylim(c(0, 1))+
-		theme_minimal()
+      
 	
-    })
-    
+	  processed_plot_data <- reactive({
+      req(combined_raw_data()) # Ensure simulations have run
+      
+	    combined_raw_data() %>%
+	      group_by(seq_depth, condition) %>%
+	      summarise(mean_NMI = mean(NMI),
+	                se_NMI = sd(NMI) / sqrt(n()),
+	                .group = 'droup') %>%
+	      mutate(mean_NMI = round(mean_NMI, 3),
+	             se_NMI = round(se_NMI, 3))
+	  })
+	  
+	  output$sim_plot <- renderPlot({
+	    req(combined_raw_data())
+	    plot_data_raw <- combined_raw_data()
+	    
+	    print("Plotting with data:")
+	    print(head(plot_data_raw))
+	    print(paste("Number of rows:", nrow(plot_data_raw)))
+	    print(paste("Unique conditions:", paste(unique(plot_data_raw$condition), collapse = ", ")))
+	    
+	    # 
+	    p <- ggplot(plot_data_raw, aes(x = seq_depth, y = NMI, color = condition)) + 
+	      geom_point(alpha = 0.5) + 
+	      labs(title = '', x = 'Sequencing depth', y = 'NMI') + 
+	      ylim(0, 1) +
+	      theme_minimal()
+	    
+	    for (cond in unique(plot_data_raw$condition)){
+	      df_subset <- plot_data_raw %>% filter (condition == cond)
+	      
+	      # fit the scam model
+	      scam_model <- scam(NMI ~ s(seq_depth, bs = 'mpi', k = 6), data = df_subset)
+	      
+	      # Create new data for a smooth prediction line
+	      new_data <- data.frame(seq_depth = seq(min(df_subset$seq_depth), max(df_subset$seq_depth), length.out = 100))
+	      new_data$NMI_pred <- predict(scam_model, new_data)
+	      new_data$condition <- cond
+	      
+	      # Add the non-decreasing curve to the plot
+	      p <- p + geom_line(data = new_data, aes(y = NMI_pred), linewidth = 1)
+	    }
+	    p  
+	  })
+
+
     output$sim_summary <- renderPrint({
       req(sim_results())
       cat("Simulation summary:\n\n")
