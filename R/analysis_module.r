@@ -122,7 +122,8 @@ analysisServer <- function(id, data_obj) {
 	                se_NMI = sd(NMI) / sqrt(n()),
 	                .group = 'drop') %>%
 	      mutate(mean_NMI = round(mean_NMI, 3),
-	             se_NMI = round(se_NMI, 3))
+	             se_NMI = round(se_NMI, 3),
+	             real_seq_depth = round(real_seq_depth, 3))
 	  })
 	  
 	  output$sim_plot <- renderPlotly({
@@ -135,12 +136,12 @@ analysisServer <- function(id, data_obj) {
 	    p <- ggplot(plot_data_summary, aes(x = real_seq_depth, y = mean_NMI, color = condition, 
 	                                       # Add custom tooltip text
 	                                       text = paste("Condition:", condition, "<br>",
-	                                                    "Seq. Depth:", real_seq_depth, "<br>",
+	                                                    "Seq. Depth (million):", real_seq_depth, "<br>",
 	                                                    "Mean NMI:", mean_NMI))) +
 	      geom_point() +
 	      geom_errorbar(aes(ymin = mean_NMI - se_NMI, ymax = mean_NMI + se_NMI), 
 	                    width = 0.1) +
-	      labs(title = 'Mean NMI vs. Sequencing Depth', x = 'Sequencing depth', y = 'Mean NMI') +
+	      labs(title = 'Mean NMI vs. Sequencing Depth', x = 'Sequencing depth (million)', y = 'Mean NMI') +
 	      ylim(0, 1) +
 	      theme_minimal()
 	    
@@ -181,7 +182,7 @@ analysisServer <- function(id, data_obj) {
 		)
 		
 		table_data <- table_data %>% dplyr::select(c(real_seq_depth, mean_NMI, se_NMI,condition))
-		table_data <- table_data %>% dplyr::rename('Sequencing depth(millons)' = real_seq_depth)
+		table_data <- table_data %>% dplyr::rename('Sequencing depth (millons)' = real_seq_depth)
 		
 		DT::datatable(
 			table_data,
