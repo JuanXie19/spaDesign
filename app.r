@@ -5,6 +5,7 @@ library(DT)
 library(shinyBS)
 library(hdf5r)
 library(scam)
+library(plotly)
 
 
 # Load reference data ONCE
@@ -16,10 +17,10 @@ reference_data <- list(
 options(shiny.maxRequestSize = 300 * 1024^2)
 
 ui <- navbarPage("Spatial Transcriptomics Experimental Design",
-  tabPanel("Data Input",
+  tabPanel("Data Preparation",
     dataInputUI("data_input")
   ),
-  tabPanel("Analysis",
+  tabPanel("Sequencing Depth Estimation",
     analysisUI("analysis")
   )
 )

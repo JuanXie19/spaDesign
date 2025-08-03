@@ -3,9 +3,6 @@ analysisUI <- function(id) {
   sidebarLayout(
     sidebarPanel(
 
-      #sliderInput(ns("seq_depth_range"), "Sequencing depth range:",
-      #            min = 0.5, max = 2, value = c(0.5, 1.5), step = 0.1),
-	 
 	 # effec size checkbox
       div(
         class = "form-group shiny-input-container", # Important for styling
@@ -62,9 +59,8 @@ analysisUI <- function(id) {
       actionButton(ns("run_sim"), "Run Simulation", class = "btn-primary")
     ),
     mainPanel(
-      plotOutput(ns("sim_plot")),
+      plotlyOutput(ns("sim_plot")),
       verbatimTextOutput(ns("sim_summary")),
-	  
 	  # add a table summary of the performance vs sequencing depth
 	  tags$h4("Detailed simulation results"), # Add a clear heading for the table
       DT::DTOutput(ns("sim_table")) # Placeholder for the interactive table
@@ -75,12 +71,15 @@ analysisUI <- function(id) {
 analysisServer <- function(id, data_obj) {
   moduleServer(id, function(input, output, session) {
     sim_results <- reactiveVal(list())
+    original_seq_depth <- reactiveVal(NULL)
     
     observeEvent(input$run_sim, {
       req(data_obj())
       #seq_range <- seq(from = input$seq_depth_range[1], to = input$seq_depth_range[2], length.out = 8)
-
-      seq_range <- c(0.5, 1:3, 5,7,10)
+      original_seq_depth_val <- sum(data_obj()@refCounts) / 1e6
+      original_seq_depth(original_seq_depth_val)
+      
+      seq_range <- c(0.5, 1:3, 5, 7, 10)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = 10)
         base_res$condition <- 'Baseline'
@@ -104,77 +103,92 @@ analysisServer <- function(id, data_obj) {
 	  
     # reactive to combine the raw data from all conditions
     combined_raw_data <- reactive({
-      req(sim_results())
       results <- sim_results()
-      bind_rows(results)    
+      req(length(results) > 0)
+      
+      req(original_seq_depth())
+      bind_rows(results)   %>% 
+        mutate(real_seq_depth = seq_depth * original_seq_depth())  
     })
       
 	
 	  processed_plot_data <- reactive({
-      req(combined_raw_data()) # Ensure simulations have run
-      
-	    combined_raw_data() %>%
-	      group_by(seq_depth, condition) %>%
+	    data_to_process <- combined_raw_data()
+	    req(data_to_process)
+	    
+	    data_to_process %>%
+	      group_by(real_seq_depth, condition) %>%
 	      summarise(mean_NMI = mean(NMI),
 	                se_NMI = sd(NMI) / sqrt(n()),
-	                .group = 'droup') %>%
+	                .group = 'drop') %>%
 	      mutate(mean_NMI = round(mean_NMI, 3),
 	             se_NMI = round(se_NMI, 3))
 	  })
 	  
-	  output$sim_plot <- renderPlot({
-	    req(combined_raw_data())
-	    plot_data_raw <- combined_raw_data()
+	  output$sim_plot <- renderPlotly({
+	    plot_data_summary <- processed_plot_data()
 	    
-	    print("Plotting with data:")
-	    print(head(plot_data_raw))
-	    print(paste("Number of rows:", nrow(plot_data_raw)))
-	    print(paste("Unique conditions:", paste(unique(plot_data_raw$condition), collapse = ", ")))
+	    validate(
+	      need(nrow(plot_data_summary) > 0 , "Press 'Run Simulation' to see the results.")
+	    )
 	    
-	    # 
-	    p <- ggplot(plot_data_raw, aes(x = seq_depth, y = NMI, color = condition)) + 
-	      geom_point(alpha = 0.5) + 
-	      labs(title = '', x = 'Sequencing depth', y = 'NMI') + 
+	    p <- ggplot(plot_data_summary, aes(x = real_seq_depth, y = mean_NMI, color = condition, 
+	                                       # Add custom tooltip text
+	                                       text = paste("Condition:", condition, "<br>",
+	                                                    "Seq. Depth:", real_seq_depth, "<br>",
+	                                                    "Mean NMI:", mean_NMI))) +
+	      geom_point() +
+	      geom_errorbar(aes(ymin = mean_NMI - se_NMI, ymax = mean_NMI + se_NMI), 
+	                    width = 0.1) +
+	      labs(title = 'Mean NMI vs. Sequencing Depth', x = 'Sequencing depth', y = 'Mean NMI') +
 	      ylim(0, 1) +
 	      theme_minimal()
 	    
+	    plot_data_raw <- combined_raw_data()
 	    for (cond in unique(plot_data_raw$condition)){
 	      df_subset <- plot_data_raw %>% filter (condition == cond)
 	      
 	      # fit the scam model
-	      scam_model <- scam(NMI ~ s(seq_depth, bs = 'mpi', k = 6), data = df_subset)
+	      scam_model <- scam(NMI ~ s(real_seq_depth, bs = 'mpi', k = 6), data = df_subset)
 	      
 	      # Create new data for a smooth prediction line
-	      new_data <- data.frame(seq_depth = seq(min(df_subset$seq_depth), max(df_subset$seq_depth), length.out = 100))
+	      new_data <- data.frame(real_seq_depth = seq(min(df_subset$real_seq_depth), max(df_subset$real_seq_depth), length.out = 100))
 	      new_data$NMI_pred <- predict(scam_model, new_data)
 	      new_data$condition <- cond
-	      
-	      # Add the non-decreasing curve to the plot
-	      p <- p + geom_line(data = new_data, aes(y = NMI_pred), linewidth = 1)
+	      p <- p + geom_line(data = new_data, aes(y = NMI_pred, text = NULL), linewidth = 1)
 	    }
-	    p  
+	    ggplotly(p, tooltip = "text")
+	    
 	  })
 
-
     output$sim_summary <- renderPrint({
-      req(sim_results())
+      results <- sim_results()
+      validate(
+        need(length(results) > 0, "No simulations run yet.")
+      )
       cat("Simulation summary:\n\n")
-      if (!is.null(sim_results()$base)) cat("- Base curve (es=1) done\n")
-      if (!is.null(sim_results()$effect)) cat(sprintf("- Effect curve (es=%.1f) done\n", input$effect_size))
-      if (!is.null(sim_results()$spatial)) cat(sprintf("- Spatial curve (sigma=%.1f) done\n", input$sigma))
+      if (!is.null(results$base)) cat("- Base curve (es=1) done\n")
+      if (!is.null(results$effect)) cat(sprintf("- Effect curve (es=%.1f) done\n", input$effect_size))
+      if (!is.null(results$spatial)) cat(sprintf("- Spatial curve (sigma=%.1f) done\n", input$sigma))
     })
 	
 	## add data table
 	output$sim_table <- DT:: renderDT({
-		req(processed_plot_data())
 		table_data <- processed_plot_data()
+		
+		validate(
+		  need(nrow(table_data) > 0, "No data available for the table. Run a simulation first.")
+		)
+		
+		table_data <- table_data %>% dplyr::select(c(real_seq_depth, mean_NMI, se_NMI,condition))
+		table_data <- table_data %>% dplyr::rename('Sequencing depth(millons)' = real_seq_depth)
 		
 		DT::datatable(
 			table_data,
 			options = list(
 			pageLength = 10, # Number of rows per page
 			lengthMenu = c(5, 10, 25, 50), # Options for rows per page
-			scrollX = TRUE # Enable horizontal scrolling if table is wide
+			scrollX = TRUE
 			),
 			rownames = FALSE, # Don't show R's default row names
 			selection = 'none' # Disable row selection if not needed
@@ -183,5 +197,4 @@ analysisServer <- function(id, data_obj) {
                       # Set to TRUE for very large datasets for performance.
 	
 	})
-  }
-
+}
