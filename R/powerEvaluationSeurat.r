@@ -35,9 +35,8 @@ evaluatePowerSeurat <- function(shinyDesign) {
 	all.genes <- rownames(seurat)
 	seurat <- ScaleData(seurat, features = all.genes)
 	seurat <- RunPCA(seurat, verbose = FALSE)
-	seurat <- RunUMAP(seurat, dims = 1:30, verbose = FALSE)
 
-	seurat <- FindNeighbors(seurat, dims = 1:30, verbose = FALSE)
+	seurat <- FindNeighbors(seurat, dims = 1:20, verbose = FALSE)
 	seurat <- FindClusters(seurat, verbose = FALSE,res = 2 )
 
 
