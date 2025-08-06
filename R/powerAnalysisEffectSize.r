@@ -45,7 +45,7 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
                         seq_depth_factor, effect_size_factor, SEED))
         
         #rst <- evaluatePower(shinyDesign, conda_env_path)
-		rst <- evaluatePowerSeurat(shinyDesign)
+		    rst <- evaluatePowerSeurat(shinyDesign)
         NMI <- rst@NMI
         total_counts <- sum(simCounts(shinyDesign))
         
@@ -53,21 +53,7 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
                    total_counts = total_counts, NMI = NMI)
     }
     
-    if(FALSE){
-    num_cores <- min(detectCores()-2, 8)
-    cl <- makeCluster(num_cores)
-    registerDoParallel(cl)
-  
-    results_list <- foreach(i = 1:nrow(param_grid), .combine = rbind, .packages = 'shinyDesign2',
-                           .export = c('shinyDesign', 'simulation_EffectSize', 'evaluatePowerSeurat')) %dopar% {
-        process_row(param_grid[i, ])}
-    stopCluster(cl)
     
-    # Combine the results into a single data frame
-    results <- do.call(rbind, results_list)
-    results.t <- as.data.frame(t(results))
-    return(results.t)
-    }
     
     results <- mclapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
