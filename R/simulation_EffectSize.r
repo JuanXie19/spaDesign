@@ -103,6 +103,97 @@ simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_fac
 }
 
 
+#' (Refactored) Simulate spatial transcriptomics data
+#' @export
+simulation_EffectSize_refactored <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED){
+  
+  # ... initial checks for factors remain the same ...
+  
+  # extract reference data
+  count_matrix <- refCounts(shinyDesign)
+  all_spot_names <- colnames(count_matrix) # <-- Extract spot names once
+  loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
+  par_GP <- paramsGP(shinyDesign)
+  
+  ## scale the coordinates ... (this part is unchanged) ...
+  coords_norm <- igraph::norm_coords(as.matrix(loc_data[,c('x', 'y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+  coords_norm <- as.data.frame(coords_norm)
+  coords_norm$domain <- loc_data$domain
+  
+  seqDepth_factor <- seq_depth_factor
+  ES_factor <- effect_size_factor
+  
+  message("Starting simulation...\n")
+  all_count <- lapply(seq_along(par_GP), function(d){
+    domain <- names(par_GP)[d]
+    GP.par <- par_GP[[d]]
+    
+    idx <- which(coords_norm$domain == domain)
+    coords_norm_sub <- coords_norm[idx, ]
+    coords_norm_out <- coords_norm[-idx, ]
+    
+    message(sprintf("Simulating genes for domain: %s\n", domain))
+    
+    gene_count <- lapply(seq_along(GP.par), function(g) {
+      tryCatch({
+        gene <- names(GP.par)[g]
+        # message(sprintf("Simulating gene: %s in domain: %s\n", gene, domain)) # Can be noisy
+        nnGP_fit <- GP.par[[g]]
+        
+        # --- KEY CHANGE IS HERE ---
+        # Check if gene exists and extract its single row of counts BEFORE calling the function
+        if (!gene %in% rownames(count_matrix)) {
+          warning(paste('Gene', gene, 'not found in count matrix for domain', domain))
+          return(NULL)
+        }
+        gene_count_row <- count_matrix[gene, ]
+        
+        # Call the refactored function with only the necessary data
+        tt <- simulate_genecount_ES_refactored(
+          SEED, coords_norm_sub, coords_norm_out, nnGP_fit, 
+          seqDepth_factor, ES_factor, 
+          gene_count_row = gene_count_row,      # <-- PASS SMALL VECTOR
+          all_spot_names = all_spot_names,      # <-- PASS NAMES
+          spot_idx = idx
+        )
+        return(tt)
+      }, error = function(e) {
+        warning(paste('Error in gene', gene, 'of domain', domain, ':', e$message))
+        return(NULL)
+      })
+    })
+    
+    gene_count <- Filter(Negate(is.null), gene_count)
+    
+    if (length(gene_count) > 0) {
+      if (length(gene_count) == 1) {
+        gene_count <- t(data.frame(gene_count[[1]]))  # Ensure it's a data frame if only one row
+      } else {
+        gene_count <- do.call(rbind, gene_count)
+      }
+      colnames(gene_count) <- all_spot_names
+      rownames(gene_count) <- paste0(domain, "-", names(GP.par))
+    } else {
+      warning(paste("All gene simulations for domain", domain, "returned NULL."))
+      return(NULL)
+    }
+    
+    return(gene_count)
+  })
+  
+  # ... final combining logic is unchanged ...
+  all_count <- Filter(Negate(is.null), all_count)
+  if (length(all_count) > 0) {
+    all_count <- do.call(rbind, all_count)
+    shinyDesign@simCounts <- all_count
+    shinyDesign@simcolData <- refcolData(shinyDesign)
+    message("Simulation complete.\n")
+    return(shinyDesign)
+  } else {
+    stop("All domain simulations returned NULL.")
+  }
+}
+
 
 #' Simulate expression count for a single gene
 #'
@@ -131,6 +222,8 @@ simulate_genecount_ES <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_f
     mu.out <- mean_out(counts, gene, spot_idx)
     n2 <- ncol(counts) - n1
     
+  
+    
     ## calculate lambda_in and lambda_out
     A <- mu1 + n2 * mu.out
     lambda.in <- A * ES_factor * b.condition / (ES_factor * mu1 + n2 * mu.out)
@@ -142,7 +235,7 @@ simulate_genecount_ES <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_f
     sim.in <- data.frame(x = coords_norm_sub$x, y = coords_norm_sub$y, sim = y.post)
     rownames(sim.in) <- rownames(coords_norm_sub)
     
-    set.seed(SEED)
+    #set.seed(SEED)
     y.out <- rpois(n = n2, lambda = seqDepth_factor * lambda.out)
     sim.out <- data.frame(x = coords_norm_out$x, y = coords_norm_out$y, sim = y.out)
     rownames(sim.out) <- rownames(coords_norm_out)
@@ -153,6 +246,58 @@ simulate_genecount_ES <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_f
     tt <- count.sim$sim
     return(tt) 
 }
+
+
+#' (Refactored) Simulate expression count for a single gene
+#'
+#' @param gene_count_row A numeric vector of counts for the gene of interest. # <-- CHANGED
+#' @param all_spot_names A character vector of all spot names (from colnames). # <-- NEW
+#' @param SEED Random seed for reproducibility
+#' @param coords_norm_sub Normalized coordinates for spots within the domain
+#' @param coords_norm_out Normalized coordinates for spots outside the domain
+#' @param nnGP_fit ouutput from parameter estimation step
+#' @param seq_depth_factor Sequencing depth factor
+#' @param ES_factor Effect size factor
+#' @param spot_idx Indices of spots within the domain
+#' @return Simulated counts for the gene
+#' @export
+simulate_genecount_ES_refactored <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, gene_count_row, all_spot_names, spot_idx){
+  
+  b.condition <- mean_in(SEED, coords_norm_sub, nnGP_fit)
+  
+  # the inside mean
+  mu1 <- sum(b.condition)
+  n1 <- nrow(coords_norm_sub)
+  
+  # the outside mean
+  mu.out <- mean_out_refactored(gene_count_row, spot_idx)
+  n2 <- length(all_spot_names) - n1
+  
+  # calculate lambda_in and lambda_out
+  A <- mu1 + n2 * mu.out
+  lambda.in <- A * ES_factor * b.condition / (ES_factor * mu1 + n2 * mu.out)
+  lambda.out <- mu.out * A / (ES_factor * mu1 + n2 * mu.out)
+  
+  set.seed(SEED)    
+  y.post <- rpois(n = nrow(coords_norm_sub), lambda = seqDepth_factor * lambda.in)
+  
+  sim.in <- data.frame(x = coords_norm_sub$x, y = coords_norm_sub$y, sim = y.post)
+  rownames(sim.in) <- rownames(coords_norm_sub)
+  
+  y.out <- rpois(n = n2, lambda = seqDepth_factor * lambda.out)
+  sim.out <- data.frame(x = coords_norm_out$x, y = coords_norm_out$y , sim = y.out)
+  rownames(sim.out) <- rownames(coords_norm_out)
+  
+  count.sim <- rbind(sim.in, sim.out)
+  # use the passed-in spot names for ordering
+  count.sim <- count.sim[order(match(rownames(count.sim), all_spot_names)),] # <-- CHANGED
+  
+  tt <- count.sim$sim
+  return(tt)  
+  
+}
+  
+
 
 #' This function simulates data based on fitted NNGP model
 #' 
@@ -166,7 +311,11 @@ mean_in <- function(SEED, coords_norm_sub, nnGP_fit) {
     if (!is.data.frame(coords_norm_sub) || !all(c("x", "y") %in% names(coords_norm_sub))) stop("coords_norm_sub must be a data frame with 'x' and 'y' columns.")
 	
 	coords_spatial <- as.matrix(coords_norm_sub[, c('x', 'y')])
+	temp_file <- tempfile()
+	sink(temp_file)
 	brisc_pred <- BRISC::BRISC_prediction(nnGP_fit, coords_spatial)
+	sink()
+	unlink(temp_file)
     sigma2 <- nnGP_fit$Theta['sigma.sq']
 	tau2 <- nnGP_fit$Theta['tau.sq']   
     b.condition <- round(exp(brisc_pred$prediction + tau2/2))-1
@@ -195,5 +344,22 @@ mean_out <- function(counts, gene, spot_idx) {
     mean.out.low <- mean(OUT.lower)
     return(mean.out.low)
 }
+
+
+#' (Refactored) Calculate Mean for Outside Domain Spots
+#'
+#' @param gene_count_row A numeric vector of counts for a single gene.
+#' @param spot_idx Numeric vector indicating the indices of spots within the domain.
+#' @return A numeric value representing the mean of the lower half of counts outside the domain.
+#' @export
+mean_out_refactored <- function(gene_count_row, spot_idx){
+  if(!is.numeric(spot_idx)) stop('spot_idx must be numeric.')
+  
+  OUT <- gene_count_row[-spot_idx]
+  OUT.lower <- OUT[OUT <= median(OUT)]
+  mean.out.low <- mean(OUT.lower)
+  return(mean.out.low)
+}
+
 
 
