@@ -39,7 +39,7 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
         message(sprintf("Simulating data with seq_depth_factor = %s, effect_size_factor = %s, SEED = %s", 
                         seq_depth_factor, effect_size_factor, SEED))
     
-        shinyDesign <- simulation_EffectSize(shinyDesign, seq_depth_factor, effect_size_factor, SEED)
+        shinyDesign <- simulation_EffectSize_refactored(shinyDesign, seq_depth_factor, effect_size_factor, SEED)
         
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, effect_size_factor = %s, SEED = %s", 
                         seq_depth_factor, effect_size_factor, SEED))
