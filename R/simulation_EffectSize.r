@@ -290,7 +290,7 @@ simulate_genecount_ES_refactored <- function(SEED, coords_norm_sub, coords_norm_
   
   count.sim <- rbind(sim.in, sim.out)
   # use the passed-in spot names for ordering
-  count.sim <- count.sim[order(match(rownames(count.sim), all_spot_names)),] # <-- CHANGED
+  count.sim <- count.sim[order(match(rownames(count.sim), all_spot_names)),] 
   
   tt <- count.sim$sim
   return(tt)  
