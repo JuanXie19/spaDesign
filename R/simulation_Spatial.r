@@ -23,115 +23,131 @@
 #'                                    SEED = 123,
 #'                                    prop = 0.7)
 #' }
+
 simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop){
-	
-	if (is.null(selected_M_list)) {
-        if (!is.null(shinyDesign@selected_M_list_AIC)) {
-            selected_M_list <- shinyDesign@selected_M_list_BIC
-        } else {
-            stop("No selected_M_list provided and shinyDesign does not contain selected_M_list_AIC.")
-        }
-    }
-	
-	# Validate inputs
-	 if (length(selected_M_list) != length(shinyDesign@paramsFG)) {
-        stop("Length of selected_M_list must match number of domains in shinyDesign")
-    }
-	
-    if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
-        stop("seq_depth_factor must be a positive numeric value.")
-    }
-    
-    count_matrix <- refCounts(shinyDesign)    
-    loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
-    par_GP <- paramsGP(shinyDesign)
-    par_FG <- paramsFG(shinyDesign)
-    
-    # Check if par_GP and par_FG exist and are not NULL
-    if (is.null(par_GP) || is.null(par_FG)) {
-      stop("par_GP and/or par_FG do not exist or are NULL.Please run parameter estimation first")
-    }
-    
-    ## scale the coordinates to [0,1] range
-    coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-    coords_norm <- as.data.frame(coords_norm)
-    coords_norm$domain <- loc_file$domain
-    
-    ## extract FG models
-	  FG_selected_model <- list()
-	  for (d in 1:length(shinyDesign@paramsFG)){
-		  domain <- names(shinyDesign@paramsFG)[d]
-		  M <- selected_M_list[d]
-		  model_name <- paste0("M_", M)
-		  domain_models <- shinyDesign@paramsFG[[domain]]$all_models
-		  if (!model_name %in% names(domain_models)) {
-			  available_M <- gsub("M_", "", names(domain_models))
-			  stop(paste0("M=", M, " not found for domain ", domain, 
-               ". Available M values: ", paste(available_M, collapse = ", ")))
-		  }
   
-		FG_selected_model[[d]] <- domain_models[[model_name]]
-	  }
-	  names(FG_selected_model) <- names(shinyDesign@paramsFG)
-	
-
-    seqDepth_factor <- seq_depth_factor
-    
-    
-    message('Simualting baseline count matrix for all domain-informative genes...')
-    ### simulate baseline count matrix for all domain-informative genes
-    base_count <- pbapply::pblapply(seq_along(par_GP), function(d){
-        
-        domain <- names(par_GP)[d]
-        GP.par <- par_GP[[d]]
-
-        simulate_base_count(SEED, seqDepth_factor, domain, GP.par, count_matrix, coords_norm)        
-        })
-    base_count <- do.call(rbind, base_count)
-    
-    ## simulate count matrix where the spots location are disturbed
-    message('Simulating count matrix for disturbed spots location...')
-    
-    library(dplyr)
-    library(pdist)
-    worse_count <- pbmclapply(seq_along(par_GP), function(d){
-        domain <- names(par_GP)[d]
-        GP.par <- par_GP[[d]]
-        FG.par <- FG_selected_model[[d]]
-
-        simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
-        }, mc.cores = 4)
-    worse_count <- do.call('rbind', worse_count)
-
-    generateCount <- function(){
-        COUNT <- lapply(seq_along(par_GP), function(d){
-            domain <- names(par_GP)[d]
-            count.base <- base_count[grep(domain,rownames(base_count)), ]   
-            count.worst <- worse_count[grep(domain,rownames(worse_count)), ]
-            n <- nrow(count.base)
-         
-            set.seed(SEED)
-            keep.idx <- sample(seq_len(n),round(prop * n))
-            count_combined <- rbind(count.base[keep.idx, ], count.worst[-keep.idx, ])
-            rownames(count_combined) <- c(rownames(count.base)[keep.idx],rownames(count.worst)[-keep.idx])
-            count_combined <- count_combined[order(match(rownames(count_combined),rownames(count.base))),]
-            return(count_combined)
-        })
-        COUNT <- do.call('rbind', COUNT)
-	      return(COUNT)
+  if (is.null(selected_M_list)) {
+    if (!is.null(shinyDesign@selected_M_list_AIC)) {
+      selected_M_list <- shinyDesign@selected_M_list_BIC
+    } else {
+      stop("No selected_M_list provided and shinyDesign does not contain selected_M_list_AIC.")
     }
-	
-	REPEAT <- 1000
-	#COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
-
-	COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
-	COUNT.SIM <- Reduce('+', COUNT.SIM)/REPEAT
-	
-	message("Simulation complete.\n")
-	shinyDesign@simCounts <- COUNT.SIM
-	shinyDesign@simcolData <- refcolData(shinyDesign)
-	return(shinyDesign)
+  }
+  
+  # Validate inputs
+  if (length(selected_M_list) != length(shinyDesign@paramsFG)) {
+    stop("Length of selected_M_list must match number of domains in shinyDesign")
+  }
+  
+  if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
+    stop("seq_depth_factor must be a positive numeric value.")
+  }
+  
+  count_matrix <- refCounts(shinyDesign)    
+  loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
+  par_GP <- paramsGP(shinyDesign)
+  par_FG <- paramsFG(shinyDesign)
+  
+  # Check if par_GP and par_FG exist and are not NULL
+  if (is.null(par_GP) || is.null(par_FG)) {
+    stop("par_GP and/or par_FG do not exist or are NULL.Please run parameter estimation first")
+  }
+  
+  ## scale the coordinates to [0,1] range
+  coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+  coords_norm <- as.data.frame(coords_norm)
+  coords_norm$domain <- loc_file$domain
+  
+  ## extract FG models
+  FG_selected_model <- list()
+  for (d in 1:length(shinyDesign@paramsFG)){
+    domain <- names(shinyDesign@paramsFG)[d]
+    M <- selected_M_list[d]
+    model_name <- paste0("M_", M)
+    domain_models <- shinyDesign@paramsFG[[domain]]$all_models
+    if (!model_name %in% names(domain_models)) {
+      available_M <- gsub("M_", "", names(domain_models))
+      stop(paste0("M=", M, " not found for domain ", domain, 
+                  ". Available M values: ", paste(available_M, collapse = ", ")))
+    }
+    
+    FG_selected_model[[d]] <- domain_models[[model_name]]
+  }
+  names(FG_selected_model) <- names(shinyDesign@paramsFG)
+  
+  
+  seqDepth_factor <- seq_depth_factor
+  
+  
+  message('Simualting baseline count matrix for all domain-informative genes...')
+  ### simulate baseline count matrix for all domain-informative genes
+  base_count <- pbapply::pblapply(seq_along(par_GP), function(d){
+    
+    domain <- names(par_GP)[d]
+    GP.par <- par_GP[[d]]
+    
+    simulate_base_count(SEED, seqDepth_factor, domain, GP.par, count_matrix, coords_norm)        
+  })
+  base_count <- do.call(rbind, base_count)
+  
+  ## simulate count matrix where the spots location are disturbed
+  message('Simulating count matrix for disturbed spots location...')
+  
+  library(dplyr)
+  library(pdist)
+  worse_count <- pbmclapply(seq_along(par_GP), function(d){
+    domain <- names(par_GP)[d]
+    GP.par <- par_GP[[d]]
+    FG.par <- FG_selected_model[[d]]
+    
+    simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
+  }, mc.cores = 4)
+  worse_count <- do.call('rbind', worse_count)
+  
+  generateCount <- function(){
+    COUNT <- lapply(seq_along(par_GP), function(d){
+      domain <- names(par_GP)[d]
+      count.base <- base_count[grep(domain,rownames(base_count)), ]   
+      count.worst <- worse_count[grep(domain,rownames(worse_count)), ]
+      n <- nrow(count.base)
+      
+      set.seed(SEED)
+      keep.idx <- sample(seq_len(n),round(prop * n))
+      count_combined <- rbind(count.base[keep.idx, ], count.worst[-keep.idx, ])
+      rownames(count_combined) <- c(rownames(count.base)[keep.idx],rownames(count.worst)[-keep.idx])
+      count_combined <- count_combined[order(match(rownames(count_combined),rownames(count.base))),]
+      return(count_combined)
+    })
+    COUNT <- do.call('rbind', COUNT)
+    return(COUNT)
+  }
+  
+  generateCount_fast <- function(){
+    count_combined <- base_count
+    disturbed_genes <- sample(rownames(base_count), round((1 - prop) * nrow(base_count)))
+    count_combined[disturbed_genes, ] <- worse_count[disturbed_genes, ]
+    count_combined
+  }
+  
+  REPEAT <- 1000
+  COUNT.SIM_LIST <- future_lapply(seq_len(REPEAT), function(i) {
+    generateCount_fast()
+  })
+  COUNT.SIM <- Reduce(`+`, COUNT.SIM_LIST) / REPEAT
+  
+  if(FALSE){
+  REPEAT <- 1000
+  #COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
+  
+  COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
+  COUNT.SIM <- Reduce('+', COUNT.SIM)/REPEAT
+  }
+  message("Simulation complete.\n")
+  shinyDesign@simCounts <- COUNT.SIM
+  shinyDesign@simcolData <- refcolData(shinyDesign)
+  return(shinyDesign)
 }
+
 
 
 ## function to simulate gene expression for within domain spots
