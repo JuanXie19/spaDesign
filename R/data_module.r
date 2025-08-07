@@ -171,8 +171,7 @@ dataInputServer <- function(id, reference_data) {
             all.genes <- rownames(seurat)
             seurat <- ScaleData(seurat, features = all.genes)
             seurat <- RunPCA(seurat)
-            seurat <- RunUMAP(seurat, dims = 1:30)
-            seurat <- FindNeighbors(seurat, dims = 1:30)
+            seurat <- FindNeighbors(seurat, dims = 1:20)
             seurat <- FindClusters(seurat, resolution = 2)
           
             X <- Seurat::AggregateExpression(seurat, assays=DefaultAssay(seurat),
