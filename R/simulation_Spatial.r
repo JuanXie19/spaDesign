@@ -46,36 +46,36 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
     par_GP <- paramsGP(shinyDesign)
 	
-	FG_selected_model <- list()
-	for (d in 1:length(shinyDesign@paramsFG)){
-		domain <- names(shinyDesign@paramsFG)[d]
-		M <- selected_M_list[d]
-		model_name <- paste0("M_", M)
-		domain_models <- shinyDesign@paramsFG[[domain]]$all_models
-		if (!model_name %in% names(domain_models)) {
-			available_M <- gsub("M_", "", names(domain_models))
-			stop(paste0("M=", M, " not found for domain ", domain, 
+	  FG_selected_model <- list()
+	  for (d in 1:length(shinyDesign@paramsFG)){
+		  domain <- names(shinyDesign@paramsFG)[d]
+		  M <- selected_M_list[d]
+		  model_name <- paste0("M_", M)
+		  domain_models <- shinyDesign@paramsFG[[domain]]$all_models
+		  if (!model_name %in% names(domain_models)) {
+			  available_M <- gsub("M_", "", names(domain_models))
+			  stop(paste0("M=", M, " not found for domain ", domain, 
                ". Available M values: ", paste(available_M, collapse = ", ")))
-		}
+		  }
   
 		FG_selected_model[[d]] <- domain_models[[model_name]]
-	}
-	names(FG_selected_model) <- names(shinyDesign@paramsFG)
+	  }
+	  names(FG_selected_model) <- names(shinyDesign@paramsFG)
 	
-  par_FG <- paramsFG(shinyDesign)
+    par_FG <- paramsFG(shinyDesign)
     
   # Check if par_GP and par_FG exist and are not NULL
-  if (is.null(par_GP) || is.null(par_FG)) {
+    if (is.null(par_GP) || is.null(par_FG)) {
         stop("par_GP and/or par_FG do not exist or are NULL.Please run parameter estimation first")
-  }
+    }
     
     
   ## scale the coordinates to [0,1] range
-  coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-  coords_norm <- as.data.frame(coords_norm)
-  coords_norm$domain <- loc_file$domain
+    coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+    coords_norm <- as.data.frame(coords_norm)
+    coords_norm$domain <- loc_file$domain
     
-  seqDepth_factor <- seq_depth_factor
+    seqDepth_factor <- seq_depth_factor
     
     
     message('Simualting baseline count matrix for all domain-informative genes...')
@@ -124,7 +124,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
 	REPEAT <- 1000
 	#COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
 	COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
-	COUNT.SIM <- do.call('rbind', COUNT.SIM)/REPEAT
+	COUNT.SIM <- Reduce('+', COUNT.SIM)/REPEAT
 	
 	message("Simulation complete.\n")
 	shinyDesign@simCounts <- COUNT.SIM
@@ -154,6 +154,18 @@ simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_id
   y.out <- rpois(n = nrow(COORDS.OUT),lambda = seqDepth_factor * mean.out.low)
   return(y.out)
 }
+
+
+simulate_geneCounts_out_refactored <- function(SEED, seqDepth_factor, gene_count_row, spot_idx, COORDS.OUT){
+  
+  mean.out.low <- mean_out_refactored(gene_count_row, spot_idx)
+  set.seed(SEED)
+  
+  ## modify the outside gene expression by seqDepth factor R
+  y.out <- rpois(n = nrow(COORDS.OUT),lambda = seqDepth_factor * mean.out.low)
+  return(y.out)
+}
+
 
 ## function to combine the inside and outside domain gene expression
 combine_in_out <- function(COORDS.IN, COORDS.OUT, y.post, y.out, counts){
@@ -197,11 +209,12 @@ simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, c
             gene <- names(GP.par)[g]
             nnGP_fit <- GP.par[[g]]
             
+            gene_count_row <- counts[gene, ]
             ## simulate the inside domain gene expression
             y.post <- simulate_geneCounts_in(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit)
             
             ## simulate the outside gene expression: based on the lower 50% of the values
-            y.out <- simulate_geneCounts_out(SEED, seqDepth_factor, counts, gene, spot_idx, coords_norm_out)
+            y.out <- simulate_geneCounts_out_refactored(SEED, seqDepth_factor, gene_count_row, spot_idx, coords_norm_out)
             count.sim <- combine_in_out(coords_norm_sub, coords_norm_out, y.post, y.out, counts)
             identical(rownames(count.sim),colnames(counts))
             tt <- count.sim$sim
@@ -281,11 +294,12 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
       gene <- names(GP.par)[g]
       nnGP_fit <- GP.par[[g]]
       
+      gene_count_row <- counts[gene, ]
       # inside domain gene expression
       y.post <- simulate_geneCounts_in(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit)
       
       ## simulate outside domain gene expression
-      y.out <- simulate_geneCounts_out(SEED, seqDepth_factor, counts, gene, spot_idx, REST)
+      y.out <- simulate_geneCounts_out_refactored(SEED, seqDepth_factor, gene_count_row, spot_idx, REST)
       
       count.sim <- combine_in_out(sim_newloc, REST, y.post, y.out, counts)                
       
