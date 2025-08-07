@@ -45,7 +45,19 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     count_matrix <- refCounts(shinyDesign)    
     loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
     par_GP <- paramsGP(shinyDesign)
-	
+    par_FG <- paramsFG(shinyDesign)
+    
+    # Check if par_GP and par_FG exist and are not NULL
+    if (is.null(par_GP) || is.null(par_FG)) {
+      stop("par_GP and/or par_FG do not exist or are NULL.Please run parameter estimation first")
+    }
+    
+    ## scale the coordinates to [0,1] range
+    coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+    coords_norm <- as.data.frame(coords_norm)
+    coords_norm$domain <- loc_file$domain
+    
+    ## extract FG models
 	  FG_selected_model <- list()
 	  for (d in 1:length(shinyDesign@paramsFG)){
 		  domain <- names(shinyDesign@paramsFG)[d]
@@ -62,19 +74,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
 	  }
 	  names(FG_selected_model) <- names(shinyDesign@paramsFG)
 	
-    par_FG <- paramsFG(shinyDesign)
-    
-  # Check if par_GP and par_FG exist and are not NULL
-    if (is.null(par_GP) || is.null(par_FG)) {
-        stop("par_GP and/or par_FG do not exist or are NULL.Please run parameter estimation first")
-    }
-    
-    
-  ## scale the coordinates to [0,1] range
-    coords_norm <- igraph::norm_coords(as.matrix(loc_file[, c('x','y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-    coords_norm <- as.data.frame(coords_norm)
-    coords_norm$domain <- loc_file$domain
-    
+
     seqDepth_factor <- seq_depth_factor
     
     
@@ -118,11 +118,12 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
             return(count_combined)
         })
         COUNT <- do.call('rbind', COUNT)
-	return(COUNT)
+	      return(COUNT)
     }
 	
 	REPEAT <- 1000
 	#COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
+
 	COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
 	COUNT.SIM <- Reduce('+', COUNT.SIM)/REPEAT
 	
@@ -259,7 +260,7 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
     source_matrix <- pred.loc
     target_matrix <- coords_norm[, c('x', 'y')]
   
-    nearest_neighbors <- Nearest_RANN(source_matrix, target_matrix)
+    nearest_neighbors <- Nearest_RANN_vectorized(source_matrix, target_matrix)
   
     coords_sim_nn <- as.data.frame(cbind(pred.loc, nearest_neighbors))
     colnames(coords_sim_nn) <- c('x', 'y', 'nearest_neighbors')
@@ -337,3 +338,19 @@ Nearest_RANN <- function(source_matrix, target_matrix) {
   
     return(temp)
 }
+
+
+# Vectorized function
+Nearest_RANN_vectorized <- function(source_matrix, target_matrix) {
+  nn_result <- RANN::nn2(target_matrix, source_matrix, k = 1)
+  nearest_indices <- as.vector(nn_result$nn.idx)
+  distances <- as.vector(nn_result$nn.dists)
+  
+  dist_min <- min(dist(target_matrix))
+  
+  result <- nearest_indices
+  result[distances > dist_min] <- -1
+  
+  return(result)
+}
+
