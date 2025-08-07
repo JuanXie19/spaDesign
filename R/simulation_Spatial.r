@@ -132,7 +132,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
   REPEAT <- 1000
   COUNT.SIM_LIST <- future_lapply(seq_len(REPEAT), function(i) {
     generateCount_fast()
-  })
+  }, future.seed = TRUE)
   COUNT.SIM <- Reduce(`+`, COUNT.SIM_LIST) / REPEAT
   
   if(FALSE){
