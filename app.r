@@ -6,6 +6,9 @@ library(shinyBS)
 library(hdf5r)
 library(scam)
 library(plotly)
+library(dplyr)
+library(parallel)
+library(future.apply)
 
 
 # Load reference data ONCE
