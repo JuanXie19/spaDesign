@@ -1,3 +1,35 @@
+## add a function to detect the saturation point
+detect_saturation <- function(model, threshold = 0.005, consecutive = 3) {
+  # Create fine grid for predictions
+  new_data <- data.frame(
+    real_seq_depth = seq(min(model$model$real_seq_depth),
+                         max(model$model$real_seq_depth),
+                         length.out = 200)
+  )
+  
+  # Predicted NMI
+  new_data$NMI_pred <- predict(model, new_data)
+  
+  # Approximate derivative
+  new_data$deriv <- c(NA, diff(new_data$NMI_pred) / diff(new_data$real_seq_depth))
+  
+  # Find first index where slope stays below threshold for 'consecutive' points
+  below_thresh <- new_data$deriv < threshold
+  run_len <- rle(below_thresh)
+  consec_idx <- which(run_len$values & run_len$lengths >= consecutive)
+  
+  if (length(consec_idx) == 0) {
+    return(NA)
+  }
+  
+  # Map back to position in new_data
+  start_pos <- sum(run_len$lengths[seq_len(consec_idx[1] - 1)]) + 1
+  sat_depth <- new_data$real_seq_depth[start_pos]
+  return(sat_depth)
+}
+
+
+
 analysisUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
@@ -81,19 +113,19 @@ analysisServer <- function(id, data_obj) {
       
       seq_range <- c(0.5, 1:3, 5, 7, 10)
       withProgress(message = "Running simulations...", {
-        base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = 10)
+        base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, seq_depth_range = seq_range, n_rep = 5)
         base_res$condition <- 'Baseline'
 		    results <- list(base = base_res)
         
         if (input$add_effect_size) {
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
-                                                seq_depth_range = seq_range, n_rep = 10)
+                                                seq_depth_range = seq_range, n_rep = 5)
 		      effect_res$condition <- 'EffectSize'										
           results$effect <- effect_res
         }
         if (input$add_spatial) {
           spatial_res <- powerAnalysisSpatial(data_obj(),SIGMA = input$sigma, prop_range = 0.7,
-                                              seq_depth_range = seq_range, n_rep = 10)
+                                              seq_depth_range = seq_range, n_rep = 5)
           spatial_res$condition <- 'Spatial'
 		      results$spatial <- spatial_res
         }
@@ -126,6 +158,8 @@ analysisServer <- function(id, data_obj) {
 	             real_seq_depth = round(real_seq_depth, 3))
 	  })
 	  
+	  saturation_points <- list()
+	  
 	  output$sim_plot <- renderPlotly({
 	    plot_data_summary <- processed_plot_data()
 	    
@@ -157,6 +191,18 @@ analysisServer <- function(id, data_obj) {
 	      new_data$NMI_pred <- predict(scam_model, new_data)
 	      new_data$condition <- cond
 	      p <- p + geom_line(data = new_data, aes(y = NMI_pred, text = NULL), linewidth = 1)
+	      
+	      ## saturation detection
+	      sat_depth <- detect_saturation(scam_model, threshold = 0.005, consecutive = 3)
+	      saturation_points[[cond]] <- sat_depth
+	      
+	      # Add dashed vertical line if found
+	      if (!is.na(sat_depth)) {
+	        p <- p + geom_vline(xintercept = sat_depth, linetype = "dashed", color = "grey40") +
+	          annotate("text", x = sat_depth, y = 0.05, 
+	                   label = paste("Sat:", round(sat_depth, 2)),
+	                   angle = 90, vjust = -0.5, hjust = 0, size = 3)
+	      }
 	    }
 	    ggplotly(p, tooltip = "text")
 	    
