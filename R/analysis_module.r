@@ -158,9 +158,10 @@ analysisServer <- function(id, data_obj) {
 	             real_seq_depth = round(real_seq_depth, 3))
 	  })
 	  
-	  saturation_points <- list()
+	  saturation_points <- reactiveVal(list())
 	  
 	  output$sim_plot <- renderPlotly({
+	    saturation_points(list())
 	    plot_data_summary <- processed_plot_data()
 	    
 	    validate(
@@ -180,6 +181,8 @@ analysisServer <- function(id, data_obj) {
 	      theme_minimal()
 	    
 	    plot_data_raw <- combined_raw_data()
+	    current_saturation_points <- list()
+	    
 	    for (cond in unique(plot_data_raw$condition)){
 	      df_subset <- plot_data_raw %>% filter (condition == cond)
 	      
@@ -194,7 +197,7 @@ analysisServer <- function(id, data_obj) {
 	      
 	      ## saturation detection
 	      sat_depth <- detect_saturation(scam_model, threshold = 0.005, consecutive = 3)
-	      saturation_points[[cond]] <- sat_depth
+	      current_saturation_points[[cond]] <- sat_depth
 	      
 	      # Add dashed vertical line if found
 	      if (!is.na(sat_depth)) {
@@ -204,6 +207,7 @@ analysisServer <- function(id, data_obj) {
 	                   angle = 90, vjust = -0.5, hjust = 0, size = 3)
 	      }
 	    }
+	    saturation_points(current_saturation_points)
 	    ggplotly(p, tooltip = "text")
 	    
 	  })
@@ -217,6 +221,24 @@ analysisServer <- function(id, data_obj) {
       if (!is.null(results$base)) cat("- Base curve (es=1) done\n")
       if (!is.null(results$effect)) cat(sprintf("- Effect curve (es=%.1f) done\n", input$effect_size))
       if (!is.null(results$spatial)) cat(sprintf("- Spatial curve (sigma=%.1f) done\n", input$sigma))
+      
+      # Add a separator for better readability
+      cat("\n---\n\n")
+      
+      
+      saturation_points_from_reactive <- saturation_points()
+      
+      # CORRECT CODE: Use the single underscore variable name
+      if (length(saturation_points_from_reactive) > 0) {
+        sat_df <- tibble::tibble(
+          Condition = names(saturation_points_from_reactive),
+          Saturation_Depth = unlist(saturation_points_from_reactive)
+        )
+        cat("Saturation Points:\n")
+        print(sat_df)
+      } else {
+        cat("No saturation points available.\n")
+      }
     })
 	
 	## add data table
