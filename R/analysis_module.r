@@ -92,7 +92,7 @@ analysisUI <- function(id) {
     ),
     mainPanel(
       plotlyOutput(ns("sim_plot")),
-      verbatimTextOutput(ns("sim_summary")),
+      #verbatimTextOutput(ns("sim_summary")),
 	  # add a table summary of the performance vs sequencing depth
 	  tags$h4("Detailed simulation results"), # Add a clear heading for the table
       DT::DTOutput(ns("sim_table")) # Placeholder for the interactive table
@@ -201,9 +201,15 @@ analysisServer <- function(id, data_obj) {
 	      
 	      # Add dashed vertical line if found
 	      if (!is.na(sat_depth)) {
-	        p <- p + geom_vline(xintercept = sat_depth, linetype = "dashed", color = "grey40") +
-	          annotate("text", x = sat_depth, y = 0.05, 
-	                   label = paste("Sat:", round(sat_depth, 2)),
+	        sat_df <- data.frame(
+	          sat_depth = sat_depth,   # fixed typo
+	          condition = cond,
+	          label = paste("Sat:", round(sat_depth, 2))
+	        )
+	        
+	        p <- p + geom_vline(data = sat_df, aes(xintercept = sat_depth,  color = condition), linetype = 'dashed' )
+	        p <- p + geom_text(data = sat_df, aes(x = sat_depth, y = 0.05, label = label, 
+	                                              color = condition),
 	                   angle = 90, vjust = -0.5, hjust = 0, size = 3)
 	      }
 	    }
@@ -211,7 +217,8 @@ analysisServer <- function(id, data_obj) {
 	    ggplotly(p, tooltip = "text")
 	    
 	  })
-
+    
+	  if(FALSE){
     output$sim_summary <- renderPrint({
       results <- sim_results()
       validate(
@@ -240,7 +247,8 @@ analysisServer <- function(id, data_obj) {
         cat("No saturation points available.\n")
       }
     })
-	
+	  }
+	  
 	## add data table
 	output$sim_table <- DT:: renderDT({
 		table_data <- processed_plot_data()
