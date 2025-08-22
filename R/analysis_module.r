@@ -166,9 +166,7 @@ analysisServer <- function(id, data_obj){
       plot_data_raw <- combined_raw_data()
       current_saturation_points <- list()
       
-      # get the default colors used by ggplot2
-      default_colors <- ggplot_build(p)$data[[1]]$colour
-      
+      saturation_df <- data.frame()
       
       for (i in seq_along(unique(plot_data_raw$condition))){
         
@@ -190,13 +188,21 @@ analysisServer <- function(id, data_obj){
         current_saturation_points[[cond]] <- sat_depth
         
         if(!is.na(sat_depth)){
-          current_color <- default_colors[[i]]
-          p <- p + geom_vline(xintercept = sat_depth, linetype = 'dashed', color = current_color) + 
-            annotate("text", x = sat_depth, y = 0.05,
-                     label = paste("Sat:", round(sat_depth, 2)),
-                     angle = 90, vjust = -0.5, hjust = 0, size = 3, color = current_color)
+         saturation_df <- rbind(saturation_df,
+                                data.frame(condition = cond,
+                                           sat_depth = sat_depth,
+                                           label = paste('Sat:', round(sat_depth, 2))))
         }
       }
+      
+      if(nrow(saturation_df) > 0){
+        p <- p + 
+          geom_vline(data = saturation_df, aes(xintercept = sat_depth, color = condition), linetype = 'dashed') +
+          # Use geom_text instead of annotate for data-driven labels
+          geom_text(data = saturation_df, aes(x = sat_depth, y = 0.05, label = label, color = condition), 
+                    angle = 90, vjust = -0.5, hjust = 0, size = 3, inherit.aes = FALSE)
+      }
+      
       saturation_points(current_saturation_points)
       ggplotly(p, tooltip = 'text')
     })

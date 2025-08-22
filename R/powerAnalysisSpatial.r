@@ -8,6 +8,8 @@
 #' @param n_rep An integer indicating the number of replications for each scenario
 #' @param conda_env_path Specify the path to the conda environment for spaGCN
 #' @param python_script Specify the path to the python script
+#' @import pbmcapply
+#' @import future.apply
 #' @return A data frame containing the sequencing depth, proportion, total counts, and NMI
 #' @name powerAnalysisSpatial
 #' @examples
@@ -41,7 +43,7 @@ powerAnalysisSpatial <- function(shinyDesign, SIGMA, prop_range, seq_depth_range
                         seq_depth_factor, prop, SEED))
                         
         #rst <- evaluatePower(DATA, conda_env_path)
-		rst <- evaluatePowerSeurat(DATA)
+		    rst <- evaluatePowerSeurat(DATA)
         NMI <- rst@NMI
         total_counts <- sum(simCounts(DATA))
         
