@@ -31,8 +31,8 @@ analysisUI <- function(id){
     sidebarPanel(
       radioButtons(ns("simulation_type"), "Select simulation modification:",
                    choices = c("None (run original only)" = "original",
-                               "Change Effect Size" = "effect_size",
-                               "Add Spatial Perturbation" = "spatial"),
+                               "Change effect size" = "effect_size",
+                               "Add spatial perturbation" = "spatial"),
                    selected = "original"),
       
       conditionalPanel(
@@ -173,10 +173,13 @@ analysisServer <- function(id, data_obj){
       }
       
       if(nrow(saturation_df) > 0){
+        saturation_df$label_y_offset <- (seq_along(saturation_df$sat_depth) %% 2) * 0.08
+        saturation_df$label_y <- 0.05 + saturation_df$label_y_offset
+        
         p <- p + 
           geom_vline(data = saturation_df, aes(xintercept = sat_depth, color = condition), linetype = 'dashed') +
           # Use geom_text instead of annotate for data-driven labels
-          geom_text(data = saturation_df, aes(x = sat_depth, y = 0.05, label = label, color = condition), 
+          geom_text(data = saturation_df, aes(x = sat_depth, y = label_y, label = label, color = condition), 
                     angle = 90, vjust = -0.5, hjust = 0, size = 3, inherit.aes = FALSE)
       }
       
