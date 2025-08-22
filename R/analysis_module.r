@@ -109,14 +109,14 @@ analysisServer <- function(id, data_obj){
         if(input$add_effect_size){
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
                                                 seq_depth_range = seq_range, n_rep = 5)
-          effect_res$condition <- 'EffectSize'
+          effect_res$condition <- paste('Effect Size:', input$effect_size)
           results$effect <- effect_res
         }
         
         if(input$add_spatial){
           spatial_res <- powerAnalysisSpatial(data_obj(), SIGMA = input$sigma, prop_range = 0.8,
                                               seq_depth_range = seq_range, n_rep = 5)
-          spatial_res$condition <- 'Spatial'
+          spatial_res$condition <- paste('Spatial (Sigma):', input$sigma)
           results$spatial <- spatial_res
         }
         sim_results(results)
@@ -216,9 +216,10 @@ analysisServer <- function(id, data_obj){
         need(nrow(table_data) > 0, "No data available for the table. Run a simulation first.")
       )
       
-      table_data <- table_data %>% dplyr::select(c(real_seq_depth, mean_NMI, se_NMI, condition))
-      
-      table_data <- table_data %>% dplyr::rename('Sequencing depth (millions)' = real_seq_depth)
+      table_data <- table_data %>% 
+        dplyr::select(c(real_seq_depth, mean_NMI, se_NMI, condition)) %>%
+        dplyr::arrange(condition) %>%
+        dplyr::rename('Sequencing depth (millions)' = real_seq_depth)
       
       DT::datatable(
         table_data,
