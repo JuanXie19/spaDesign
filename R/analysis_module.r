@@ -29,50 +29,26 @@ analysisUI <- function(id){
   sidebarLayout(
     # sidebar panel
     sidebarPanel(
-      # effect size checkbox
-      div(
-        class = "form-group shiny-input-container",
-        tags$label(
-          tags$label(
-            tags$input(id = ns("add_effect_size"), type = "checkbox", class = "shiny-input-checkbox"),
-            tags$span("Change effect size?"),
-            tags$span(id = ns("effect_size_info"), icon ("info-circle"))
-          )
-        ),
-        bsTooltip(
-          id = ns("effect_size_info"),
-          title = "If checked, simulates data with changed effect size. A value of 1 means original effect size, while 2 means twice the original effect size. Larger values lead to a stronger signal. ",
-          placement = "right",
-          options = list(container = "body")
-        )
-      ),
+      radioButtons(ns("simulation_type"), "Select simulation modification:",
+                   choices = c("None (run original only)" = "original",
+                               "Change Effect Size" = "effect_size",
+                               "Add Spatial Perturbation" = "spatial"),
+                   selected = "original"),
       
       conditionalPanel(
-        condition = sprintf("input['%s']", ns("add_effect_size")),
-        sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.5)
+        # Condition now depends on the 'effect_size' radio button choice
+        condition = sprintf("input['%s'] == 'effect_size'", ns("simulation_type")),
+        sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.5),
+        # You can add the info icon and tooltip here if you like
+        bsTooltip(id = ns("effect_size"), title = "A value of 1 means original effect size, while 2 means twice the original effect size. Larger values lead to a stronger signal.", placement = "right")
       ),
       
-      ## add spatial checkbox
-      div(
-        class= "form-group shiny-input-container",
-        tags$label(
-          tags$input(id = ns("add_spatial"), type = "checkbox", class = "shiny-input-checkbox"),
-          tags$span("Add spatial perturbation?"),
-          tags$span(
-            id = ns("spatial_info"),
-            icon("info-circle")
-          )
-        ),
-        bsTooltip(
-          id = ns("spatial_info"),
-          title = "If checked, simulate data with spatial noise. Larger sigma leads to more disturbed spatial pattern.",
-          placement = "right",
-          options = list(container = "body")
-        )
-      ),
+      # Conditional panel for the spatial noise slider
       conditionalPanel(
-        condition = sprintf("input['%s']", ns("add_spatial")),
-        sliderInput(ns("sigma"), "Sigma(spatial noise):", min = 0.5, max = 3, value = 1, step = 0.5)
+        # Condition now depends on the 'spatial' radio button choice
+        condition = sprintf("input['%s'] == 'spatial'", ns("simulation_type")),
+        sliderInput(ns("sigma"), "Sigma(spatial noise):", min = 0.5, max = 3, value = 1, step = 0.5),
+        bsTooltip(id = ns("sigma"), title = "Larger sigma leads to more disturbed spatial pattern.", placement = "right")
       ),
       actionButton(ns("run_sim"), "Run simulation", class = "btn-primary")
     ),
@@ -106,14 +82,13 @@ analysisServer <- function(id, data_obj){
         base_res$condition <- 'Original'
         results <- list(base = base_res)
         
-        if(input$add_effect_size){
+        if(input$simulation_type == "effect_size"){
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
                                                 seq_depth_range = seq_range, n_rep = 5)
           effect_res$condition <- paste('Effect Size:', input$effect_size)
           results$effect <- effect_res
-        }
-        
-        if(input$add_spatial){
+          
+        } else if(input$simulation_type == "spatial"){
           spatial_res <- powerAnalysisSpatial(data_obj(), SIGMA = input$sigma, prop_range = 0.8,
                                               seq_depth_range = seq_range, n_rep = 5)
           spatial_res$condition <- paste('Spatial (Sigma):', input$sigma)
