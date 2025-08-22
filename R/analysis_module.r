@@ -81,7 +81,9 @@ analysisUI <- function(id){
     mainPanel(
       plotlyOutput(ns("sim_plot")),
       tags$h4("Detailed simulation results"),
-      DT::DTOutput(ns("sim_table"))
+      DT::DTOutput(ns("sim_table")),
+      hr(),
+      downloadButton(ns("download_table"), "Download Table", class = "btn-sm")
     )
   )
 }
@@ -229,6 +231,15 @@ analysisServer <- function(id, data_obj){
         selection = 'none'
       )
     }, server = FALSE)
+    
+    output$download_table <- downloadHandler(
+      filename = function() {
+        paste("simulation-results-", Sys.Date(), ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(processed_plot_data(), file, row.names = FALSE)
+      }
+    )
   })
 }
 
