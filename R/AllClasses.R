@@ -1,12 +1,23 @@
 #' @title Class \code{shinyDesign}
-#' @description The \code{shinyDesign} class is used to store and manage data relevant to power analysis within the \code{shinyDesign} package.
-#' @aliases shinyDesign-class
-#' @importFrom S4Vectors DataFrame
-#' @importFrom methods setClassUnion new
-#' @import Matrix
-#'
-#' @description The \code{shinyDesign} class holds data relevant for performing experimental design with the \code{shinyDesign} package.
-#' It includes slots for storing both reference and simulated count data, along with associated spatial coordinates and domain information, and optional parameters.
+#' 
+#' @description 
+#' The \code{shinyDesign} class is used to store and manage data relevant to power analysis 
+#' within the \code{shinyDesign} package. It holds both reference and simulated count data, associated meta data,
+#' and optional parameters from fitted models.
+#' 
+#' @slot refCounts A matrix-like object (e.g., \code{Matrix::dgCMatrix}) of reference counts.
+#' @slot refcolData A \code{data.frame} containing column-level metadata for reference counts.
+#' @slot refrowData A \code{data.frame} containing row-level metadata for reference counts.
+#' @slot simCounts A matrix-like object of simulated counts.
+#' @slot simcolData A \code{data.frame} containing column-level metadata for simulated counts.
+#' @slot simrowData A \code{data.frame} containing row-level metadata for simulated counts.
+#' @slot paramsGP An optional list of parameters for Gaussian processes, or \code{NULL}.
+#' @slot paramsFG An optional list of parameters for Fisher Gaussian kernel mixture model, or \code{NULL}.
+#' @slot selected_M_list_AIC Best model selection results based on AIC.
+#' @slot selected_M_list_BIC Best model selection results based on BIC.
+#' @slot topGenes An optional list of top genes, or \code{NULL}.
+#' @slot NMI Normalized mutual information value (numeric or object).
+#' 
 #' @details
 #' The \code{shinyDesign} class includes the following slots:
 #' \describe{
@@ -24,11 +35,16 @@
 #'   \item{\code{NMI}}{A slot for normalized mutual information}
 #' }
 #'
-#' @return The accessor functions \code{refCounts}, \code{\refcolData}, \code{\refrowData}, \cide{\simCounts}, \code{\simcolData}, \code{\simrowData},
-#'  \code{paramsGP}, \code{paramsFG}, \code{\topGenes} and \code{NMI} return the corresponding elements of a \code{shinyDesign} object.
-#'
+#' @details 
+#' This class provides a container for storing both observed and simulated 
+#' spatial transcriptomics data, along with results from downstream modeling.
+#' 
+#' @return A \code{shinyDesign} object.
+#' 
+#' @importFrom S4Vectors DataFrame
+#' @importFrom methods setClassUnion setClass
+#' @importFrom Matrix Matrix
 #' @export
-#'
 setClassUnion(name = 'OptionalList', members = c('NULL', 'list'))
 setClassUnion(name = 'OptionalCharacter', members = c('NULL', 'character'))
 

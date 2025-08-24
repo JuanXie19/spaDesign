@@ -1,11 +1,28 @@
 
 #' EM algorithm for simplified Fisher-Gaussian model
 #'
-#' @param x Numeric matrix of coordinates (n*d)
+#' Fits a Fisher-Gaussian mixture model to spatial coordinates using the EM algorithm.
+#'
+#' @param x Numeric matrix of coordinates (rows = observersion, cols = dimensions)
 #' @param M Number of mixture components(clusters) (default: 5)
-#' @param iter_max Maximum EM iterations (default: 1000)
-#' @param tol Convergence tolerance (default: 1e-1) 
+#' @param iter_max Maximum number of EM iterations (default: 1000)
+#' @param tol Convergence tolerance for change in log-likelihood (default: 1e-1)
+#' @return A list containing estimated parameters:
+#'   \item{pi}{Mixture weights}
+#'   \item{c}{Cluster centers}
+#'   \item{r}{Cluster radii}
+#'   \item{phi}{Mean direction of each cluster}
+#'   \item{tau}{Angular spread of each cluster}
+#'   \item{sigma_sq}{Variance of Gaussian noise}
+#'   \item{log_likelihood}{Log-likelihood trajectory over iterations}
+#'   \item{n_iter}{Number of iterations performed}
+#'   \item{W}{Posterior cluster assignment probabilities}
 #' @export
+#' # Generate example 2D data
+#' set.seed(123)
+#' x <- matrix(rnorm(100), ncol = 2)
+#' fit <- FG_EM(x, M = 3, iter_max = 100, tol = 1e-2)
+#' 
 FG_EM <- function(x, M, iter_max = 500, tol = 1e-1 ){
   
   n <- nrow(x)
@@ -59,8 +76,21 @@ FG_EM <- function(x, M, iter_max = 500, tol = 1e-1 ){
     W = W))
 }
 
-## the initialization for the EM algorithm
-# use k-kmeans to cluster the data, use cluster centers as the intial values for c_hat, 
+#' Initialize parameters for FG-EM algorithm using k-means
+#' 
+#' Computes initial estimates of mixture weights, cluster centers, radii, angular directions, 
+#' angular spread, and residual variance for the Fisher-Gaussian EM algorithm.
+#'
+#' @param x Numeric matrix of coordinates
+#' @param M Number of clusters
+#' @return A list containing initialized parameters:
+#'   \item{pi_hat}{Initial mixture weights}
+#'   \item{c_hat}{Initial cluster centers}
+#'   \item{r_hat}{Initial radii}
+#'   \item{sigma_sq}{Initial residual variance}
+#'   \item{phi_hat}{Initial mean directions}
+#'   \item{tau_hat}{Initial angular spreads}
+#' @keywords internal
 initial_kmeans <- function(x, M){
   n <- nrow(x)
   pi_hat <- rep(1/M, M)
@@ -125,6 +155,23 @@ initial_kmeans <- function(x, M){
   return(list(pi_hat = pi_hat, c_hat = c_hat, r_hat = r_hat, sigma_sq = sigma_sq, phi_hat = phi_hat, tau_hat = tau_hat))
 }
 
+#' E-step of the Fisher-Gaussian EM algorithm
+#'
+#' Computes posterior probabilities (W) of cluster assignments and expected 
+#' normalized directions (y_expect) for each cluster.
+#'
+#' @param x Numeric matrix of coordinates (n x d)
+#' @param pi_hat Numeric vector of mixture weights
+#' @param c_hat Numeric matrix of cluster centers (M x d)
+#' @param r_hat Numeric vector of cluster radii
+#' @param phi_hat Numeric matrix of mean directions (M x d)
+#' @param tau_hat Numeric vector of angular spread parameters
+#' @param sigma_sq Numeric scalar of Gaussian noise
+#' @return A list with:
+#'   \item{W}{Posterior probabilities of cluster membership (n x M)}
+#'   \item{y_expect_list}{List of expected normalized vectors for each cluster}
+#' @keywords internal
+
 E_step <- function(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq){
   n <- nrow(x)
   M <- length(pi_hat)
@@ -141,6 +188,27 @@ E_step <- function(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq){
   return(list(W = W, y_expect_list = y_expect_list))
 }
 
+
+#' M-step of the Fisher-Gaussian EM algorithm
+#'
+#' Updates mixture weights, cluster centers, radii, mean directions, angular spreads, and Gaussian noise
+#' based on the current E-step results.
+#'
+#' @param x Numeric matrix of coordinates (n x d)
+#' @param W Posterior cluster probabilities (n x M)
+#' @param y_expect_list List of expected normalized vectors for each cluster
+#' @param c_hat Current cluster centers (M x d)
+#' @param r_hat Current cluster radii
+#' @param phi_hat Current mean directions (M x d)
+#' @param tau_hat Current angular spreads
+#' @return A list with updated parameters:
+#'   \item{pi_hat}{Updated mixture weights}
+#'   \item{c_hat}{Updated cluster centers}
+#'   \item{r_hat}{Updated radii}
+#'   \item{phi_hat}{Updated mean directions}
+#'   \item{tau_hat}{Updated angular spreads}
+#'   \item{sigma_sq}{Updated Gaussian noise}
+#' @keywords internal
 
 M_step <- function(x, W, y_expect_list, c_hat, r_hat, phi_hat, tau_hat){
   n <- nrow(x)
@@ -198,8 +266,22 @@ for (k in 1: M){
               phi_hat = phi_hat, tau_hat = tau_hat, sigma_sq = sigma_sq))
 }
 
-
-# Function to compute BIC for a given M
+#' Fit FG-EM model and compute model selection criteria
+#'
+#' Runs the Fisher-Gaussian EM algorithm for a given number of clusters and computes
+#' AIC and BIC for model selection.
+#'
+#' @param x Numeric matrix of coordinates (n x d)
+#' @param M Integer. Number of mixture components
+#' @param iter_max Maximum EM iterations (default = 500)
+#' @param tol Convergence tolerance for EM algorithm (default = 1e-1)
+#' @return A list containing:
+#'   \item{model}{List returned by FG_EM, including fitted parameters and log-likelihoods}
+#'   \item{AIC}{Akaike Information Criterion}
+#'   \item{BIC}{Bayesian Information Criterion}
+#'   \item{n_parameters}{Number of estimated parameters in the model}
+#'   \item{converged_iter}{Number of EM iterations until convergence}
+#' @keywords internal
 FG_EM_with_criteria <- function(x, M, iter_max, tol) {
   fit <- FG_EM(x, M, iter_max, tol)
   
@@ -225,7 +307,22 @@ FG_EM_with_criteria <- function(x, M, iter_max, tol) {
   ))
 }
 
-#' Model selection via BIC/AIC
+#' Select the best number of clusters via BIC/AIC
+#'
+#' Fits FG-EM models for multiple candidate numbers of clusters and selects the best model
+#' based on BIC and AIC.
+#'
+#' @param x Numeric matrix of coordinates (n x d)
+#' @param M_candidates Integer vector of candidate cluster numbers (default = 2:5)
+#' @param iter_max Maximum EM iterations (default = 1000)
+#' @param tol Convergence tolerance (default = 1e-1)
+#' @return A list containing:
+#'   \item{all_models}{List of models fitted for each candidate M}
+#'   \item{criteria_table}{Data frame summarizing AIC, BIC, convergence, and iterations for each M}
+#'   \item{best_M_AIC}{Best M according to AIC}
+#'   \item{best_M_BIC}{Best M according to BIC}
+#'   \item{best_model_AIC}{FG-EM model corresponding to best AIC}
+#'   \item{best_model_BIC}{FG-EM model corresponding to best BIC}
 #' @export
 #' @noRd
 

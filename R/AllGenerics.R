@@ -1,126 +1,82 @@
-#' @title Extract the reference count matrix
-#' @param x shinyDesign object
-#' @export
-#' @return Returns a reference count matrix
+#==================================
+# Accessor Generics for shinyDesign
+#==================================
+#' @title Access slots of a shinyDesign object
+#' @description Access reference counts, simulated counts, metadata, model parameters, and top genes
+#' stored in a \code{shinyDesign} object.
+#' @param x A \code{shinyDesign} object
+#' @return Slot content (matrix, data.frame, or list) depending on the accessor
 #' @examples
-#' refCounts(shinyDesign)
-setGeneric(
-    name = 'refCounts',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('refCounts')    
-    }
-)
+#' \dontrun{
+#' sd <- new("shinyDesign",
+#'           refCounts = matrix(1:6, nrow = 2),
+#'           refcolData = data.frame(sample = 1:3),
+#'           refrowData = data.frame(gene = c("A","B")),
+#'           simCounts = matrix(7:12, nrow = 2),
+#'           simcolData = data.frame(cell = 1:3),
+#'           simrowData = data.frame(gene = c("A","B")),
+#'           paramsFG = list(param1 = 1),
+#'           paramsGP = list(param2 = 2),
+#'           topGenes = list(c("gene1","gene2")))
+#'
+#' refCounts(sd)
+#' refcolData(sd)
+#' refrowData(sd)
+#' simCounts(sd)
+#' simcolData(sd)
+#' simrowData(sd)
+#' paramsFG(sd)
+#' paramsGP(sd)
+#' topGenes(sd)
+#' }
+#' @name shinyDesign-accessors
+NULL
 
-#' @title Extract the reference colData
-#' @param x \code{shinyDesign} object
+
+# -------------------------------
+# Reference data accessors
+# -------------------------------
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns the colData of reference data
-#' @examples
-#' refcolData(shinyDesign)
-setGeneric(
-    name = 'refcolData',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('refcolData')
-    }
-)
+setGeneric("refCounts", function(x) standardGeneric("refCounts"))
 
-#' @title Access reference rowData 
-#' @param x \code{shinyDesign} object
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns the rowData of reference data
-#' @examples
-#' refrowData(shinyDesign)
-setGeneric(
-    name = 'refrowData',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('refrowData')
-    }
-)
+setGeneric("refcolData", function(x) standardGeneric("refcolData"))
 
-#' @title Access simulated count matrix
-#' @param x \code{shinyDesign} object
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns the simulated count matrix
-#' @examples
-#' simCounts(shinyDesign)
-setGeneric(
-    name = 'simCounts',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('simCounts')
-    }
-)
+setGeneric("refrowData", function(x) standardGeneric("refrowData"))
 
-#' @title Access colData for simulated data 
-#' @param x \code{shinyDesign} object
+# -------------------------------
+# Simulated data accessors
+# -------------------------------
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns the colData of simulated data
-#' @examples
-#' simcolData(shinyDesign)
-setGeneric(
-    name = 'simcolData',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('simcolData')
-    }
-)
+setGeneric("simCounts", function(x) standardGeneric("simCounts"))
 
-#' @title Access rowData for simulated data 
-#' @param x \code{shinyDesign} object
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns the rowData of simulated data
-#' @examples
-#' simrowData(shinyDesign)
-setGeneric(
-    name = 'simrowData',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('simrowData')
-    }
-)
+setGeneric("simcolData", function(x) standardGeneric("simcolData"))
 
-#' @title Access estimated parameter from the fitted Fisher-Gaussian kernel model
-#' @param x \code{shinyDesign} object
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns a list of estimated parameters from fitted Fisher-Gaussian kernel mixture model
-#' @examples
-#' paramsFG(shinyDesign)
-setGeneric(
-    name = 'paramsFG',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('paramsFG')
-    }
-)
+setGeneric("simrowData", function(x) standardGeneric("simrowData"))
 
-#' @title Access estimated parameter from the fitted Gaussian process model
-#' @param x \code{shinyDesign} object
+# -------------------------------
+# Model parameter accessors
+# -------------------------------
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns a list of estimated parameters from fitted Gaussian process model
-#' @examples
-#' paramsGP(shinyDesign)
-setGeneric(
-    name = 'paramsGP',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('paramsGP')
-    }
-)
+setGeneric("paramsFG", function(x) standardGeneric("paramsFG"))
 
-#' @title Access selected top genes for each domain
-#' @param x \code{shinyDesign} object
+#' @rdname shinyDesign-accessors
 #' @export
-#' @return Returns a list of selected top genes for each domain
-#' @examples
-#' topGenes(shinyDesign)
-setGeneric(
-    name = 'topGenes',
-    signature = 'x',
-    def = function(x){
-        standardGeneric('topGenes')
-    }
-)
+setGeneric("paramsGP", function(x) standardGeneric("paramsGP"))
 
+# -------------------------------
+# Top genes
+# -------------------------------
+#' @rdname shinyDesign-accessors
+#' @export
+setGeneric("topGenes", function(x) standardGeneric("topGenes"))

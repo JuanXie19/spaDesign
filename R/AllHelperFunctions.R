@@ -1,106 +1,82 @@
-#' Access the reference count matrix from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return The reference count matrix
-#' @export
-setMethod(
-    f = 'refCounts',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"refCounts" %in% slotNames(x)) stop("Slot 'refCounts' not found in 'shinyDesign' object")
-        x@refCounts
-    }
-)
+#' @title Accessors for \code{shinyDesign} objects
+#' 
+#' @description Access slots of a \code{shinyDesign} object, including reference
+#' and simulated data, model parameters, and results.
+#' 
+#' @param x A \code{shinyDesign} object.
+#' 
+#' @return Slot contents:
+#' \itemize{
+#'   \item \code{refCounts} – reference count matrix
+#'   \item \code{refcolData} – reference column metadata
+#'   \item \code{refrowData} – reference row metadata
+#'   \item \code{simCounts} – simulated count matrix
+#'   \item \code{simcolData} – simulated column metadata
+#'   \item \code{simrowData} – simulated row metadata
+#'   \item \code{paramsFG} – Fisher–Gaussian mixture model parameters
+#'   \item \code{paramsGP} – Gaussian process/NNGP model parameters
+#'   \item \code{topGenes} – list of top selected genes
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' obj <- new("shinyDesign",
+#'            refCounts = matrix(1:6, nrow = 2),
+#'            refcolData = data.frame(sample = 1:3),
+#'            refrowData = data.frame(gene = c("A", "B")),
+#'            simCounts = matrix(7:12, nrow = 2),
+#'            simcolData = data.frame(cell = 1:3),
+#'            simrowData = data.frame(gene = c("A", "B")))
+#' 
+#' refCounts(obj)
+#' simCounts(obj)
+#' paramsFG(obj)
+#' }
+#' 
+#' @name shinyDesign-accessors
+NULL
 
-#' Access the reference column data from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return The reference column data
-#' @export
-setMethod(
-    f = 'refcolData',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"refcolData" %in% slotNames(x)) stop("Slot 'refcolData' not found in 'shinyDesign' object")
-        x@refcolData    
-    }
-)
 
-#' Access the reference row data from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return The reference row data
+# Reference data
+#' @rdname shinyDesign-accessors
 #' @export
-setMethod(
-    f = 'refrowData',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"refrowData" %in% slotNames(x)) stop("Slot 'refrowData' not found in 'shinyDesign' object")
-        x@refrowData    
-    }
-)
+setMethod("refCounts", "shinyDesign", function(x) x@refCounts)
 
-#' Access the simulated count matrix from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return The simulated count matrix
+#' @rdname shinyDesign-accessors
 #' @export
-setMethod(
-    f = 'simCounts',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"simCounts" %in% slotNames(x)) stop("Slot 'simCounts' not found in 'shinyDesign' object")
-        x@simCounts    
-    }
-)
+setMethod("refcolData", "shinyDesign", function(x) x@refcolData)
 
-#' Access the simulated column data from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return The simulated column data
-#' @export
-setMethod(
-    f = 'simcolData',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"simcolData" %in% slotNames(x)) stop("Slot 'simcolData' not found in 'shinyDesign' object")
-        x@simcolData    
-    }
-)
 
-#' Access fitted Fisher-Gaussian kernel model parameters from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return A list of estimated parameters from fitted Fisher-Gaussian kernel mixture model
+#' @rdname shinyDesign-accessors
 #' @export
-setMethod(
-    f = 'paramsFG',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"paramsFG" %in% slotNames(x)) stop("Slot 'paramsFG' not found in 'shinyDesign' object")
-        x@paramsFG    
-    }
-)
+setMethod("refrowData", "shinyDesign", function(x) x@refrowData)
 
-#' Access fittedNNGP model parameters from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return A list of estimated parameters from fitted NNGP model
+# Simulated data
+#' @rdname shinyDesign-accessors
 #' @export
-setMethod(
-    f = 'paramsGP',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"paramsGP" %in% slotNames(x)) stop("Slot 'paramsGP' not found in 'shinyDesign' object")
-        x@paramsGP    
-    }
-)
+setMethod("simCounts", "shinyDesign", function(x) x@simCounts)
 
-#' Access selected top genes for each domain from a shinyDesign object
-#' @param x A \code{shinyDesign} object
-#' @return A list of selected top genes
+#' @rdname shinyDesign-accessors
 #' @export
-setMethod(
-    f = 'topGenes',
-    signature = 'shinyDesign',
-    definition = function(x) {
-        if (!"topGenes" %in% slotNames(x)) stop("Slot 'topGenes' not found in 'shinyDesign' object")
-        x@topGenes    
-    }
-)
+setMethod("simcolData", "shinyDesign", function(x) x@simcolData)
+
+#' @rdname shinyDesign-accessors
+#' @export
+setMethod("simrowData", "shinyDesign", function(x) x@simrowData)
+
+# Parameters
+#' @rdname shinyDesign-accessors
+#' @export
+setMethod("paramsFG", "shinyDesign", function(x) x@paramsFG)
+
+#' @rdname shinyDesign-accessors
+#' @export
+setMethod("paramsGP", "shinyDesign", function(x) x@paramsGP)
+
+# Top genes
+#' @rdname shinyDesign-accessors
+#' @export
+setMethod("topGenes", "shinyDesign", function(x) x@topGenes)
 
 #' Show method for shinyDesign objects
 #' @param object A \code{shinyDesign} object

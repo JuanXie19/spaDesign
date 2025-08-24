@@ -1,56 +1,18 @@
+#' Data Input Server Module
+#'
+#' Server logic for the data input tab. Handles file reading, clustering, and processing.
+#'
+#' @param id A character string specifying the Shiny module namespace.
+#' @param reference_data A list of reference datasets (optional).
+#'
+#' @return A reactive object containing the final processed data.
+#' @import shiny
+#' @import ggplot2
+#' @import data.table
+#' @import Seurat
+#' @export
 
-
-library(shiny)
-library(ggplot2)
-library(Matrix)
-library(data.table)
-
-dataInputUI <- function(id) {
-  ns <- NS(id)
-  sidebarLayout(
-    sidebarPanel(
-      radioButtons(ns("data_source"), "Choose data source:",
-                   choices = c("Use reference data" = "reference",
-                               "Upload your own data" = "upload"),
-                   selected = "reference"),
-      conditionalPanel(
-        condition = sprintf("input['%s'] == 'reference'", ns("data_source")),
-        selectInput(ns("reference_dataset"), "Select reference dataset:", choices = NULL)
-      ),
-      conditionalPanel(
-        condition = sprintf("input['%s'] == 'upload'", ns("data_source")),
-        h4('Upload SpaceRanger Output Files'),
-        fileInput(ns("h5_file"), "Choose filtered_feature_bc_matrix.h5 file", accept = ".h5"),
-        fileInput(ns("positions_file"), "Upload tissue_positions_list.csv file", accept = '.csv'),
-        fileInput(ns("anno_file"), "Upload annotations (.csv, optional):"),
-        
-        # conditional panel for n_clusters.It shows up only if data source is 'upload' AND annotation file is not provided
-        conditionalPanel(
-          condition = sprintf("input['%s'] == 'upload' && !input['%s']", ns("data_source"), ns("anno_file")),
-          numericInput(ns("n_clusters"), "Number of expected clusters:", value = 7, min=2, step=1)
-        ),
-        
-        checkboxInput(ns("show_advanced"), "Show advanced feature selection options", value = FALSE),
-        conditionalPanel(
-          condition = sprintf("input['%s']", ns("show_advanced")),
-          sliderInput(ns("logfc_cutoff"), "logFC cutoff:", min=0.1, max=2, value=0.7, step=0.1),
-          sliderInput(ns("mean_in_cutoff"), "Mean in cutoff:", min=0.5, max=5, value=1.8, step=0.1),
-          numericInput(ns("max_num_gene"), "Max number of genes:", value=10, min=1, step=1)
-        ),
-        
-        # action button to triggole the analysis
-        hr(),
-        actionButton(ns('prepare_data_button'), "Run Data Preparation", class =  "btn-primary")
-      )
-    ),
-    mainPanel(
-      plotOutput(ns("domain_plot")),
-      verbatimTextOutput(ns("summary_ref"))
-    )
-  )
-}
-
-dataInputServer <- function(id, reference_data) {
+dataInputServer <- function(id, reference_data_paths) {
   moduleServer(id, function(input, output, session) {
     
     # update choices for reference data once
@@ -65,7 +27,7 @@ dataInputServer <- function(id, reference_data) {
     raw_data <- reactive({
       if (input$data_source == "reference") {
         req(input$reference_dataset)
-        data <- reference_data[[input$reference_dataset]]
+        data <- readRDS(reference_data_paths[[input$reference_dataset]])
         # Assuming reference data is a list with 'counts' and 'coords'
         return(list(counts = data@refCounts, coords = data@refcolData))
       } else {
@@ -163,8 +125,6 @@ dataInputServer <- function(id, reference_data) {
           
           withProgress(message = "Running clustering to predict domains...", {
             # --- Seurat Clustering Pipeline ---
-            library(Seurat)
-            library(SeuratObject)
             seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
             seurat <- NormalizeData(seurat)
             seurat <- FindVariableFeatures(seurat, selection.method = 'vst')
@@ -177,9 +137,7 @@ dataInputServer <- function(id, reference_data) {
             
             X <- Seurat::AggregateExpression(seurat, assays=DefaultAssay(seurat),
                                              slot="scale.data", group.by="seurat_clusters")[[1]]
-            dist1 <- dist(t(X))
-            hclust1 <- hclust(dist1)
-            clust2 <- cutree(hclust1, k = input$n_clusters)
+            clust2 <- cutree(hclust(dist(t(X))), k = input$n_clusters)
             new_labels <- clust2
             names(new_labels) <- levels(seurat)
             
@@ -204,9 +162,7 @@ dataInputServer <- function(id, reference_data) {
       mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
       max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
       
-      #nullfile <- tempfile()
-      #sink(nullfile)
-      
+     
       tryCatch({
         withProgress(message = "Creating design object...", {
           DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)

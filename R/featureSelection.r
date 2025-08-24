@@ -1,17 +1,28 @@
-#' Select genes with large absolute fold change for each spatial domain
+#' Select Domain-Informative Genes for Each Spatial Domain
+#' This function selects genes with large absolute fold change and high within-domain expression
+#' for each spatial domain. The selected genes are stored in the `topGenes` slot of the
+#' `shinyDesign` object.
 #'
-#' @param shinyDesign A \code{shinyDesign} object
-#' @param logfc_cutoff Numeric value specifying the threshold for log fold change, used to select genes with significant differential expression within vs outside domain
-#' @param mean_in_cutoff Numeric value specifying the cutoff for within-domain mean expression (log-transformed), used to select domain-informative genes
-#' @param max_num_gene Integer specifying the maximum number of genes that can be selected for each spatial domain.
+#' @param shinyDesign A \code{shinyDesign} object.
+#' @param logfc_cutoff Numeric value specifying the threshold for log fold change, 
+#' used to select genes with significant differential expression within vs outside domain.
+#' @param mean_in_cutoff Numeric value specifying the minimum mean log-transformed expression within the domain.
+#' @param max_num_gene Integer specifying the maximum number of genes that can be selected per spatial domain.
+#' @return Returns the input \code{shinyDesign} object with the `topGenes` slot updated
+#'         with the selected genes for each domain.
+#'         
+#' @details Genes are selected by filtering based on `logfc_cutoff` and `mean_in_cutoff`.
+#'          If too few genes meet both criteria, the union of individual criteria is used.
+#'          The top genes are then ordered by descending absolute logFC and truncated
+#'          to `max_num_gene`.
+
 #' @import dplyr
-#' @import pbapply
-#' @return A object with selected features for each domain
+#' @import pbmcapply
 #' @export
 #' @examples
 #' # Assuming you have a shinyDesign object named `my_spadesign`
-#' my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = .7, mean_in_cutoff = 2, max_num_gene = 10)
-#' # You can now access the top genes for each domain using:
+#' my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = 0.7, mean_in_cutoff = 2, max_num_gene = 10)
+#' # Access the selected genes
 #' top_genes <- my_spadesign@topGenes
 
 featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_gene){
@@ -25,7 +36,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
 	
 	FC_list <- geneSummary(count_matrix, loc_file)
 	
-	top_genes <- mclapply(FC_list, function(DF) {
+	top_genes <- pbmclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 
@@ -34,7 +45,9 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
             idx2 <- which(DF$logFC_low >= logfc_cutoff)
             idx <- base::union(idx1, idx2)
         }
-        if (length(idx) > max_num_gene) {
+        
+        selected <- DF[idx, drop = FALSE]
+        if (nrow(selected) > max_num_gene) {
             selected_genes <- DF[idx, ] %>%
                 dplyr::arrange(-abs(logFC_low)) %>%
                 head(max_num_gene)
@@ -46,8 +59,9 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
         return(selected_genes)
     }, mc.cores = 4)
     names(top_genes) <- names(FC_list)
-    message("Completed gene selection for all domains.")
-	shinyDesign@topGenes <- top_genes
+	  shinyDesign@topGenes <- top_genes
+	  message("Completed gene selection for all domains.")
+	  
     return(shinyDesign)
 }
 
@@ -66,7 +80,7 @@ geneSummary <- function(count_matrix, loc){
 	domains <- sort(unique(loc$domain))
 	log_count <- log(count_matrix + 1)
 	
-	fc_results <- mclapply(domains, function(domain) {
+	fc_results <- pbmclapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
         rst <- sapply(seq_len(nrow(log_count)), function(gene) {
             spot_idx <- which(loc$domain == domain)

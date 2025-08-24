@@ -1,30 +1,42 @@
-#' Create shinyDesign object
-#' @param count_matrix A gene expression count \code{matrix}
-#' @param loc A \code{data.frame} containing the spatial coordinates and domain information for spots, corresponding to columns named as 'x', 'y', and 'domain'
-#' @return Returns a \code{shinyDesign} object 
+#' Create a shinyDesign object
+#' 
+#' @description
+#' Creates a \code{shinyDesign} object to store reference and simulated count data,
+#' along with associated spatial metadata and optional model parameters.
+#'
+#' @param count_matrix A numeric matrix of gene expression count(genes x spots)
+#' @param loc A \code{data.frame} containing the spatial coordinates and domain information for spots, 
+#'            Required columns: 'x', 'y', and 'domain'.
+#'          
+#' @return A \code{shinyDesign} object 
 #' @importFrom methods new validObject
-#' @export 
+#' @export
+#' 
 #' @examples
-#'
-#' ## Create a shinyDesign object
-#' toyDATA  <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-#'
+#' \dontrun{
+#' sd <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
+#' }
 createDesignObject <- function(count_matrix, loc) {
-    ## Check dimensions
+    # Check count_matrix
+    if (!is.matrix(count_matrix)) stop("count_matrix must be a matrix")
+    if (!is.numeric(count_matrix)) stop("count_matrix must contain numeric values")
+  
+    # Check loc
+    if (!inherits(loc, "data.frame")) loc <- as.data.frame(loc)
+    required_cols <- c("x", "y", "domain")
+    missing_cols <- setdiff(required_cols, colnames(loc))
+    if (length(missing_cols) > 0) {
+      stop("loc is missing required columns: ", paste(missing_cols, collapse = ", "))
+    }
+  
+    # Check dimensions
     if (ncol(count_matrix) != nrow(loc)) {
-        stop("The number of spots in count_matrix and loc should be consistent!")
+      stop("Number of columns in count_matrix must equal number of rows in loc")
     }
-    
-    ## Check location dimension
-    required_columns <- c("x", "y", "domain")
-    missing_columns <- setdiff(required_columns, colnames(loc))
-    if (length(missing_columns) > 0) {
-        stop(paste("loc file must contain these three columns: x, y and domain. The following columns are/is missing:", paste(missing_columns, collapse = ", ")))
-    }
-    
-    ## Check location index consistency
+  
+    # Check names consistency
     if (!identical(colnames(count_matrix), rownames(loc))) {
-        stop("colnames in the count_matrix file is different from the rownames in the loc file")
+      stop("colnames(count_matrix) and rownames(loc) must be identical")
     }
     
     
@@ -44,7 +56,7 @@ createDesignObject <- function(count_matrix, loc) {
         simrowData = data.frame(),  # Initialize with empty data.frame
         paramsGP = NULL,
         paramsFG = NULL,
-		topGenes = NULL,
+		    topGenes = NULL,
         NMI = NULL
     )
     

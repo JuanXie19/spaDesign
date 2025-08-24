@@ -1,11 +1,19 @@
 #' Simulate data with modified sequencing depth and dispersion
 #'
-#' @param shinyDesign A \code{shinyDesign} object
+#' This function generates simulated spatial gene expression counts by combining baseline domain-informative
+#' expression patterns with perturbed spot locations. It allows scaling of sequencing depth and the 
+#' \code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
+#' 
+#' @param shinyDesign A \code{shinyDesign} object containing spatial coordinates, gene expression,
+#'   and fitted GP/FG parameters.
+#' @param selected_M_list Optional list of selected FG model indices for each domain. If \code{NULL},
+#'   the function will attempt to use \code{shinyDesign@selected_M_list_BIC}.
 #' @param seq_depth_factor Numeric scaling factor for sequencing depth
-#' @param SIGMA scaling factor for the \code{sigma} parameter from the FG model
-#' @param SEED random seed for reproducibility
-#' @param prop Proportion of genes to keep undisturbed
-#' @return A \code{shinyDesign} object with simulated count matrix
+#' @param SIGMA Numeric scaling factor for the \code{sigma} parameter from the FG model.
+#' @param SEED Integer random seed for reproducibility.
+#' @param prop Numeric, proportion of genes to keep undisturbed (between 0 and 1).
+#' @return A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts}, and
+#'   updated spot metadata in \code{simcolData}.
 #' @import pdist
 #' @import clue
 #' @import RANN
@@ -13,6 +21,10 @@
 #' @import Rfast
 #' @import movMF
 #' @import MASS
+#' @import dplyr
+#' @import pbapply
+#' @import pbmcapply
+#' @import future.apply
 #' @export
 #'
 #' @examples
@@ -67,7 +79,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     domain_models <- shinyDesign@paramsFG[[domain]]$all_models
     if (!model_name %in% names(domain_models)) {
       available_M <- gsub("M_", "", names(domain_models))
-      stop(paste0("M=", M, " not found for domain ", domain, 
+      stop(paste0("M =", M, " not found for domain ", domain, 
                   ". Available M values: ", paste(available_M, collapse = ", ")))
     }
     
@@ -107,8 +119,8 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
   generateCount <- function(){
     COUNT <- lapply(seq_along(par_GP), function(d){
       domain <- names(par_GP)[d]
-      count.base <- base_count[grep(domain,rownames(base_count)), ]   
-      count.worst <- worse_count[grep(domain,rownames(worse_count)), ]
+      count.base <- base_count[grep(domain, rownames(base_count)), ]   
+      count.worst <- worse_count[grep(domain, rownames(worse_count)), ]
       n <- nrow(count.base)
       
       set.seed(SEED)
@@ -149,8 +161,15 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
 }
 
 
-
-## function to simulate gene expression for within domain spots
+#' Simulate gene expression for spots inside a domain
+#'
+#' @param SEED Integer random seed for reproducibility.
+#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
+#' @param coords_norm_sub Data frame of normalized coordinates for spots inside the domain.
+#' @param nnGP_fit Fitted NNGP model object for the gene.
+#' @return Numeric vector of simulated counts for the spots inside the domain.
+#' @export
+#' @noRd
 simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit){
   
   set.seed(SEED)
@@ -161,7 +180,17 @@ simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_
   return(y.post)
 }
 
-## function to simulate gene expression for outside domain spots
+#' Simulate gene expression for spots outside a domain
+#'
+#' @param SEED Integer random seed for reproducibility.
+#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
+#' @param counts Matrix of gene expression counts (genes x spots).
+#' @param gene Character string specifying the gene name.
+#' @param spot_idx Numeric vector of indices of spots inside the domain.
+#' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
+#' @return Numeric vector of simulated counts for the spots outside the domain.
+#' @export
+#' @noRd
 simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_idx, COORDS.OUT){
    
   mean.out.low <- mean_out(counts, gene, spot_idx)
@@ -173,6 +202,18 @@ simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_id
 }
 
 
+#' (Refactored) Simulate gene expression for spots outside a domain
+#'
+#' Uses a single gene vector instead of full count matrix to reduce memory usage.
+#'
+#' @param SEED Integer random seed for reproducibility.
+#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
+#' @param gene_count_row Numeric vector of counts for the gene.
+#' @param spot_idx Numeric vector of indices of spots inside the domain.
+#' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
+#' @return Numeric vector of simulated counts for the spots outside the domain.
+#' @export
+#' @noRd
 simulate_geneCounts_out_refactored <- function(SEED, seqDepth_factor, gene_count_row, spot_idx, COORDS.OUT){
   
   mean.out.low <- mean_out_refactored(gene_count_row, spot_idx)
@@ -184,7 +225,17 @@ simulate_geneCounts_out_refactored <- function(SEED, seqDepth_factor, gene_count
 }
 
 
-## function to combine the inside and outside domain gene expression
+
+#' Combine simulated inside and outside domain counts
+#'
+#' @param COORDS.IN Data frame of coordinates for spots inside the domain.
+#' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
+#' @param y.post Numeric vector of simulated counts for inside-domain spots.
+#' @param y.out Numeric vector of simulated counts for outside-domain spots.
+#' @param counts Original count matrix (for column ordering).
+#' @return Data frame of simulated counts for all spots, ordered to match the original count matrix.
+#' @export
+
 combine_in_out <- function(COORDS.IN, COORDS.OUT, y.post, y.out, counts){
   sim.in <- data.frame(x = COORDS.IN$x,y = COORDS.IN$y, sim = y.post)
   rownames(sim.in) <- rownames(COORDS.IN)
@@ -197,7 +248,15 @@ combine_in_out <- function(COORDS.IN, COORDS.OUT, y.post, y.out, counts){
   return(count.sim)
 }
 
-## process the gene expression: if GP conditional sampling has an error, null value will be assigned to the gene, here to remove null expression generated 
+#' Process simulated counts and remove NULL entries
+#'
+#' @param GENE.COUNT List of simulated gene counts (each element a numeric vector or NULL).
+#' @param counts Original count matrix (genes x spots).
+#' @param domain Character string of domain name.
+#' @param GP.par List of GP parameters for the genes in the domain.
+#' @return Matrix of simulated counts for all genes in the domain, with appropriate row and column names.
+#' @export
+#' @noRd
 process_count <- function(GENE.COUNT, counts, domain, GP.par){
   if (any(sapply(GENE.COUNT, is.null)) == 'FALSE') {
     GENE.COUNT <- Reduce('rbind', GENE.COUNT)     
@@ -211,8 +270,16 @@ process_count <- function(GENE.COUNT, counts, domain, GP.par){
   return(GENE.COUNT)
 }
  
-# simulate base count for one set of domain-informative genes. Specifically, simulate count for multiple genes, including their within-domain and outside domain expression
-
+#' Simulate expression counts for a set of domain-informative genes without modifying their spatial patterns.
+#'
+#' @param SEED Integer random seed for reproducibility.
+#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
+#' @param domain Character string specifying the domain.
+#' @param GP.par List of GP parameters for the domain genes.
+#' @param counts Original count matrix (genes x spots).
+#' @param coords_norm Data frame of normalized coordinates for all spots.
+#' @return Matrix of simulated expression counts for the domain genes.
+#' @export
 simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, coords_norm){
     
     spot_idx <- which(coords_norm$domain == domain)        
@@ -246,6 +313,18 @@ simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, c
     return(GENE.COUNT)
 }
 
+#' Simulate perturbed expression counts for a set of domain-informative genes.
+#'
+#' @param SEED Integer random seed for reproducibility.
+#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
+#' @param domain Character string specifying the domain.
+#' @param GP.par List of GP parameters for the domain genes.
+#' @param counts Original count matrix (genes x spots).
+#' @param coords_norm Data frame of normalized coordinates for all spots.
+#' @param FG.par FG model parameters for the domain.
+#' @param SIGMA Numeric scaling factor for FG sigma.
+#' @return Matrix of simulated counts for the domain genes.
+#' @export
 simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, counts, coords_norm, SIGMA){
 
   ## modulate the spatial pattern via changing the sigma in the FG fit
@@ -334,8 +413,13 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
 }
 
     
-#' get the nearest neighbor index
-#' @export	
+#' Get nearest neighbor indices between two sets of points
+#'
+#' @param source_matrix Matrix of coordinates for source points (rows = points, columns = x,y).
+#' @param target_matrix Matrix of coordinates for target points (rows = points, columns = x,y).
+#' @return Integer vector of nearest neighbor indices for each source point in the target matrix.
+#'   If no neighbor is within minimal distance, the index is -1.
+#' @export
 Nearest_RANN <- function(source_matrix, target_matrix) {
     nn_result <- RANN::nn2(target_matrix, source_matrix, k = 1)
     nearest_indices <- nn_result$nn.idx
