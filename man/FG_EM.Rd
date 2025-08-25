@@ -7,14 +7,26 @@
 FG_EM(x, M, iter_max = 500, tol = 0.1)
 }
 \arguments{
-\item{x}{Numeric matrix of coordinates (n*d)}
+\item{x}{Numeric matrix of coordinates (rows = observersion, cols = dimensions)}
 
 \item{M}{Number of mixture components(clusters) (default: 5)}
 
-\item{iter_max}{Maximum EM iterations (default: 1000)}
+\item{iter_max}{Maximum number of EM iterations (default: 1000)}
 
-\item{tol}{Convergence tolerance (default: 1e-1)}
+\item{tol}{Convergence tolerance for change in log-likelihood (default: 1e-1)}
+}
+\value{
+A list containing estimated parameters:
+\item{pi}{Mixture weights}
+\item{c}{Cluster centers}
+\item{r}{Cluster radii}
+\item{phi}{Mean direction of each cluster}
+\item{tau}{Angular spread of each cluster}
+\item{sigma_sq}{Variance of Gaussian noise}
+\item{log_likelihood}{Log-likelihood trajectory over iterations}
+\item{n_iter}{Number of iterations performed}
+\item{W}{Posterior cluster assignment probabilities}
 }
 \description{
-EM algorithm for simplified Fisher-Gaussian model
+Fits a Fisher-Gaussian mixture model to spatial coordinates using the EM algorithm.
 }

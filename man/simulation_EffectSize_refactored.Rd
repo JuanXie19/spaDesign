@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{simulation_EffectSize_refactored}
 \alias{simulation_EffectSize_refactored}
-\title{(Refactored) Simulate spatial transcriptomics data}
+\title{(Refactored)Simulate spatial transcriptomics data with modified effect size and sequencing depth}
 \usage{
 simulation_EffectSize_refactored(
   shinyDesign,
@@ -11,6 +11,21 @@ simulation_EffectSize_refactored(
   SEED
 )
 }
+\arguments{
+\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates, gene expression,
+and estimated NNGP parameters.}
+
+\item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0).}
+
+\item{effect_size_factor}{Numeric scaling factor for effect size (must be > 0).}
+
+\item{SEED}{Integer random seed for reproducibility.}
+}
+\value{
+A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts},
+and updated \code{simcolData} with spot metadata.
+}
 \description{
-(Refactored) Simulate spatial transcriptomics data
+This function generates simulated spatial gene expression counts based on a fitted NNGP model.
+It allows scaling of sequencing depth and effect size for domain-informative genes.
 }

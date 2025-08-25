@@ -36,7 +36,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
 	
 	FC_list <- geneSummary(count_matrix, loc_file)
 	
-	top_genes <- pbmclapply(FC_list, function(DF) {
+	top_genes <- pbmcapply::pbmclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 

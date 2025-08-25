@@ -14,21 +14,28 @@ simulation_Spatial(
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object}
+\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates, gene expression,
+and fitted GP/FG parameters.}
+
+\item{selected_M_list}{Optional list of selected FG model indices for each domain. If \code{NULL},
+the function will attempt to use \code{shinyDesign@selected_M_list_BIC}.}
 
 \item{seq_depth_factor}{Numeric scaling factor for sequencing depth}
 
-\item{SIGMA}{scaling factor for the \code{sigma} parameter from the FG model}
+\item{SIGMA}{Numeric scaling factor for the \code{sigma} parameter from the FG model.}
 
-\item{SEED}{random seed for reproducibility}
+\item{SEED}{Integer random seed for reproducibility.}
 
-\item{prop}{Proportion of genes to keep undisturbed}
+\item{prop}{Numeric, proportion of genes to keep undisturbed (between 0 and 1).}
 }
 \value{
-A \code{shinyDesign} object with simulated count matrix
+A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts}, and
+updated spot metadata in \code{simcolData}.
 }
 \description{
-Simulate data with modified sequencing depth and dispersion
+This function generates simulated spatial gene expression counts by combining baseline domain-informative
+expression patterns with perturbed spot locations. It allows scaling of sequencing depth and the
+\code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
 }
 \examples{
 \dontrun{

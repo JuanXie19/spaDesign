@@ -64,7 +64,7 @@ estimation_NNGP <- function(shinyDesign, n_neighbors = 10, order = 'AMMD',X = NU
 							              logCount = log(test.data$gene + 1),
 							               X = X,
 							               n_neighbors = n_neighbors,
-							               order = oder,
+							               order = order,
 							               verbose = verbose)
 			  return(GPrst)
 		    })		

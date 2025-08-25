@@ -3,29 +3,48 @@
 \name{powerAnalysisSpatial}
 \alias{powerAnalysisSpatial}
 \title{Power analysis for spatial data}
+\usage{
+powerAnalysisSpatial(
+  shinyDesign,
+  SIGMA,
+  prop_range,
+  seq_depth_range,
+  n_rep,
+  n_cores
+)
+}
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object with estimated model parameters}
+\item{shinyDesign}{A \code{shinyDesign} object with estimated model parameters.}
 
-\item{prop_range}{A numeric vector indicating the range of proportions (proportion of genes with undisturbed pattern)}
+\item{SIGMA}{A numeric value indicating the Gaussian noise level.}
 
-\item{seq_depth_range}{A numeric vector indicating the range of sequencing depth scaling factors}
+\item{prop_range}{A numeric vector indicating the range of proportions
+(proportion of genes with undisturbed pattern).}
 
-\item{n_rep}{An integer indicating the number of replications for each scenario}
+\item{seq_depth_range}{A numeric vector indicating the range of sequencing depth scaling factors.}
 
-\item{conda_env_path}{Specify the path to the conda environment for spaGCN}
+\item{n_rep}{An integer indicating the number of replications for each scenario.}
 
-\item{python_script}{Specify the path to the python script}
+\item{n_cores}{Number of COP cores to use for parallellization (default = 1).}
 }
 \value{
-A data frame containing the sequencing depth, proportion, total counts, and NMI
+A data frame with columns:
+\describe{
+\item{seq_depth}{Sequencing depth scaling factor.}
+\item{prop}{Proportion of undisturbed patterns.}
+\item{total_counts}{Total counts in the simulated data.}
+\item{NMI}{Normalized Mutual Information from power evaluation.}
+}
 }
 \description{
-This function performs power analysis by simulating spatial data with different proportions of undisturbed patterns and sequencing depths.
+This function performs power analysis by simulating spatial data under
+different proportions of undisturbed patterns and sequencing depths.
 }
 \examples{
-# spadesign <- ...
-# prop_range <- c(0.1, 0.5, 1)
-# seq_depth_range <- c(0.5, 1, 3, 5)
-# n_rep <- 10
-# results <- powerAnalysisSpatial(shinyDesign, prop_range, seq_depth_range, n_rep, conda_env_path) 
+\dontrun{
+  prop_range <- c(0.1, 0.5, 1)
+  seq_depth_range <- c(0.5, 1, 3, 5)
+  n_rep <- 10
+  results <- powerAnalysisSpatial(shinyDesign, SIGMA = 1, prop_range, seq_depth_range, n_rep, n_cores = 2)
+}
 }

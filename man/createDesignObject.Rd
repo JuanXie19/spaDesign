@@ -2,24 +2,25 @@
 % Please edit documentation in R/createShinyDesignObject.R
 \name{createDesignObject}
 \alias{createDesignObject}
-\title{Create shinyDesign object}
+\title{Create a shinyDesign object}
 \usage{
 createDesignObject(count_matrix, loc)
 }
 \arguments{
-\item{count_matrix}{A gene expression count \code{matrix}}
+\item{count_matrix}{A numeric matrix of gene expression count(genes x spots)}
 
-\item{loc}{A \code{data.frame} containing the spatial coordinates and domain information for spots, corresponding to columns named as 'x', 'y', and 'domain'}
+\item{loc}{A \code{data.frame} containing the spatial coordinates and domain information for spots,
+Required columns: 'x', 'y', and 'domain'.}
 }
 \value{
-Returns a \code{shinyDesign} object
+A \code{shinyDesign} object
 }
 \description{
-Create shinyDesign object
+Creates a \code{shinyDesign} object to store reference and simulated count data,
+along with associated spatial metadata and optional model parameters.
 }
 \examples{
-
-## Create a shinyDesign object
-toyDATA  <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-
+\dontrun{
+sd <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
+}
 }

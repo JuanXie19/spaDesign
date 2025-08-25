@@ -7,12 +7,12 @@
 mean_out_refactored(gene_count_row, spot_idx)
 }
 \arguments{
-\item{gene_count_row}{A numeric vector of counts for a single gene.}
+\item{gene_count_row}{Numeric vector of counts for a single gene.}
 
 \item{spot_idx}{Numeric vector indicating the indices of spots within the domain.}
 }
 \value{
-A numeric value representing the mean of the lower half of counts outside the domain.
+Numeric value representing the mean of the lower half of counts outside the domain.
 }
 \description{
 (Refactored) Calculate Mean for Outside Domain Spots

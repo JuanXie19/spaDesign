@@ -26,7 +26,7 @@
 #' @importFrom igraph norm_coords
 #' @import dplyr
 #' @import invgamma
-#' @import pbmclapply
+#' @import pbmcapply
 #' @import MASS
 #' @import movMF
 #' @import Rfast
@@ -63,7 +63,7 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
   coords_norm$domain <- loc_file$domain
 
   DOMAIN <- sort(unique(loc_file$domain))
-	RST <- pbmclapply(seq_along(DOMAIN), function(d){
+	RST <- pbmcapply::pbmclapply(seq_along(DOMAIN), function(d){
 		          coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
 		          FIT <- select_best_M(x = as.matrix(coords_sub[, c('x', 'y')]), M_candidates = M_candidates, iter_max = iter_max, tol = tol)
 		          return(FIT)	

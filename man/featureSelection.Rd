@@ -2,28 +2,42 @@
 % Please edit documentation in R/featureSelection.r
 \name{featureSelection}
 \alias{featureSelection}
-\title{Select genes with large absolute fold change for each spatial domain}
+\title{Select Domain-Informative Genes for Each Spatial Domain
+This function selects genes with large absolute fold change and high within-domain expression
+for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
+\code{shinyDesign} object.}
 \usage{
 featureSelection(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_gene)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object}
+\item{shinyDesign}{A \code{shinyDesign} object.}
 
-\item{logfc_cutoff}{Numeric value specifying the threshold for log fold change, used to select genes with significant differential expression within vs outside domain}
+\item{logfc_cutoff}{Numeric value specifying the threshold for log fold change,
+used to select genes with significant differential expression within vs outside domain.}
 
-\item{mean_in_cutoff}{Numeric value specifying the cutoff for within-domain mean expression (log-transformed), used to select domain-informative genes}
+\item{mean_in_cutoff}{Numeric value specifying the minimum mean log-transformed expression within the domain.}
 
-\item{max_num_gene}{Integer specifying the maximum number of genes that can be selected for each spatial domain.}
+\item{max_num_gene}{Integer specifying the maximum number of genes that can be selected per spatial domain.}
 }
 \value{
-A object with selected features for each domain
+Returns the input \code{shinyDesign} object with the \code{topGenes} slot updated
+with the selected genes for each domain.
 }
 \description{
-Select genes with large absolute fold change for each spatial domain
+Select Domain-Informative Genes for Each Spatial Domain
+This function selects genes with large absolute fold change and high within-domain expression
+for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
+\code{shinyDesign} object.
+}
+\details{
+Genes are selected by filtering based on \code{logfc_cutoff} and \code{mean_in_cutoff}.
+If too few genes meet both criteria, the union of individual criteria is used.
+The top genes are then ordered by descending absolute logFC and truncated
+to \code{max_num_gene}.
 }
 \examples{
 # Assuming you have a shinyDesign object named `my_spadesign`
-my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = .7, mean_in_cutoff = 2, max_num_gene = 10)
-# You can now access the top genes for each domain using:
+my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = 0.7, mean_in_cutoff = 2, max_num_gene = 10)
+# Access the selected genes
 top_genes <- my_spadesign@topGenes
 }

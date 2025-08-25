@@ -2,20 +2,20 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{mean_in}
 \alias{mean_in}
-\title{This function simulates data based on fitted NNGP model}
+\title{Compute mean expression inside a domain}
 \usage{
 mean_in(SEED, coords_norm_sub, nnGP_fit)
 }
 \arguments{
-\item{SEED}{Random seed for reproducibility}
+\item{SEED}{Integer random seed for reproducibility}
 
-\item{coords_norm_sub}{Normalized coordinates for spots within the domain}
+\item{coords_norm_sub}{Data frame of normalized coordinates for spots within the domain.}
 
-\item{nnGP_fit}{ouutput from parameter estimation step}
+\item{nnGP_fit}{Fitted NNGP model object for the gene.}
 }
 \value{
-A numeric vector representing the sampled expression levels within the domain
+Numeric vector of predicted expression levels for each spot within the domain
 }
 \description{
-This function simulates data based on fitted NNGP model
+Uses a fitted NNGP model to predict expected expression levels for spots within a domain.
 }

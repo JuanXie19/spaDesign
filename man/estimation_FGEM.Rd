@@ -2,24 +2,48 @@
 % Please edit documentation in R/estimation_FGEM.r
 \name{estimation_FGEM}
 \alias{estimation_FGEM}
-\title{Estimate the parameters for simplified Fisher-Gaussian kernel mixture model using EM algorithm}
+\title{Estimate the parameters for simplified Fisher-Gaussian kernel mixture model via EM algorithm}
 \usage{
-estimation_FGEM(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 0.1)
+estimation_FGEM(
+  shinyDesign,
+  iter_max = 1000,
+  M_candidates = 2:5,
+  tol = 0.1,
+  n_cores = 2,
+  verbose = FALSE
+)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial data}
+\item{shinyDesign}{A \code{shinyDesign} object containing spatial spatial metadata in \code{refcolData}
+with columns \code{"x"}, \code{"y"}, and \code{"domain"} (one row per spot).}
 
 \item{iter_max}{Maximum number of EM iterations (default = 1000)}
 
-\item{tol}{Convergence tolerance for EM algorithm (default = 1e-1)
-return Updated \code{shinyDesign} object with Fisher-Gaussian parameter estimates}
+\item{tol}{Positive convergence tolerance for EM algorithm (default = 1e-1)}
 
-\item{M}{Number of mixture components(clusters) (default = 5)}
+\item{n_cores}{Number of CPU cores for parallization (default = 1). Uses \code{pbmclapply};
+on windows this is treated as sequential.}
+
+\item{verbose}{Logical; if \code{TRUE}, print progress messages (default = TRUE).
+
+return Updated \code{shinyDesign} object with Fisher-Gaussian parameter estimates and M list:
+\itemize{
+\item \code{paramsFG}: list of per-domain fit results (from \code{select_best_M}).
+\item \code{selected_M_list_BIC}: named integer vector of best M by BIC (NA if failed).
+\item \code{selected_M_list_AIC}: named integer vector of best M by AIC (NA if failed).
+}}
+
+\item{M_candiate}{Integer vector of candidate mixture sizes to try (default = 2:5)}
 }
 \description{
-Fits a Fisher-Gaussian kernel mixture model to spatial coordinates using the EM algorithm. This models the spatial distribution of spots within each tissue domain
+Fits a Fisher-Gaussian kernel mixture model to the spatial coordinates
+(per domain) using the EM algorithm, and stores results in the \code{shinyDesign} object.
+}
+\details{
+Coordinates are rescaled to \(\link{0,1}\times\link{0,1}\) with \code{igraph::norm_coords} before fitting.
+For any domain with fewer spots than some candidate M, those candidates are dropped for that domain.
 }
 \examples{
 # Assuming shinyDesign is a valid shinyDesign object
-# result <- estimation_FGEM(shinyDesign, iter_max = 1000, M =5, tol = 1e-1)
+# result <- estimation_FGEM(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE)
 }

@@ -3,17 +3,14 @@
 \docType{class}
 \name{OptionalList-class}
 \alias{OptionalList-class}
-\alias{shinyDesign-class}
 \title{Class \code{shinyDesign}}
 \value{
-The accessor functions \code{refCounts}, \code{\refcolData}, \code{\refrowData}, \cide{\simCounts}, \code{\simcolData}, \code{\simrowData},
-\code{paramsGP}, \code{paramsFG}, \code{\topGenes} and \code{NMI} return the corresponding elements of a \code{shinyDesign} object.
+A \code{shinyDesign} object.
 }
 \description{
-The \code{shinyDesign} class is used to store and manage data relevant to power analysis within the \code{shinyDesign} package.
-
-The \code{shinyDesign} class holds data relevant for performing experimental design with the \code{shinyDesign} package.
-It includes slots for storing both reference and simulated count data, along with associated spatial coordinates and domain information, and optional parameters.
+The \code{shinyDesign} class is used to store and manage data relevant to power analysis
+within the \code{shinyDesign} package. It holds both reference and simulated count data, associated meta data,
+and optional parameters from fitted models.
 }
 \details{
 The \code{shinyDesign} class includes the following slots:
@@ -31,4 +28,35 @@ The \code{shinyDesign} class includes the following slots:
 \item{\code{topGenes}}{An optional list of top genes, or \code{NULL}.}
 \item{\code{NMI}}{A slot for normalized mutual information}
 }
+
+This class provides a container for storing both observed and simulated
+spatial transcriptomics data, along with results from downstream modeling.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{refCounts}}{A matrix-like object (e.g., \code{Matrix::dgCMatrix}) of reference counts.}
+
+\item{\code{refcolData}}{A \code{data.frame} containing column-level metadata for reference counts.}
+
+\item{\code{refrowData}}{A \code{data.frame} containing row-level metadata for reference counts.}
+
+\item{\code{simCounts}}{A matrix-like object of simulated counts.}
+
+\item{\code{simcolData}}{A \code{data.frame} containing column-level metadata for simulated counts.}
+
+\item{\code{simrowData}}{A \code{data.frame} containing row-level metadata for simulated counts.}
+
+\item{\code{paramsGP}}{An optional list of parameters for Gaussian processes, or \code{NULL}.}
+
+\item{\code{paramsFG}}{An optional list of parameters for Fisher Gaussian kernel mixture model, or \code{NULL}.}
+
+\item{\code{selected_M_list_AIC}}{Best model selection results based on AIC.}
+
+\item{\code{selected_M_list_BIC}}{Best model selection results based on BIC.}
+
+\item{\code{topGenes}}{An optional list of top genes, or \code{NULL}.}
+
+\item{\code{NMI}}{Normalized mutual information value (numeric or object).}
+}}
+

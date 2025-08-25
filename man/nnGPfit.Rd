@@ -15,7 +15,7 @@ nnGPfit(
 )
 }
 \arguments{
-\item{spatial_coords}{Matrix of spatial coordinates}
+\item{spatial_coords}{Matrix of spatial coordinates (rows = spots)}
 
 \item{logCount}{vector of log-transformed gene expression counts}
 
@@ -28,7 +28,7 @@ nnGPfit(
 \item{order:}{Ordering scheme to use for ordering coordinates with BRISC.('AMMD' or 'Sum_coords', default = 'AMMD'). See BRISC documentation for details.}
 }
 \value{
-BRISC fitted model objet
+BRISC fitted model object
 }
 \description{
 Fit a Nearest-Neighbor Gaussian Process(NNGP) model

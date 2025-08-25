@@ -2,17 +2,15 @@ Package: shinyDesign2
 Type: Package
 Title: Tools for sequencing-based spatial transcriptomics experimental design
 Version: 0.0.0.9000
-Authors@R: 
-    person("Juan", "Xie", , "juanxie.84@gmail.com", role = c("aut", "cre"))
-Description: Provides tools for simulating sequencing based spatial transcriptomics data to 	facilitate experimental designs. 
-    Includes integration with Seurat, Shiny modules for interactive analysis, and utility functions for performance evaluation.
+Authors@R: person("Juan", "Xie", email = "juanxie.84@gmail.com", role = c("aut", "cre"))
+Description: Provides tools for simulating sequencing-based spatial transcriptomics data
+ to facilitate experimental designs. Includes integration with Seurat, Shiny modules
+ for interactive analysis, and utility functions for performance evaluation.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-Depends: 
-    R (>= 4.1)
-
+Depends: R (>= 4.5)
 Imports:
     shiny,
     ggplot2,
@@ -31,10 +29,10 @@ Imports:
     Matrix,
     matrixStats,
     mvtnorm,
-    movMF
-
-
+    movMF,
+    Rfast
 Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown
+SystemRequirements: Xcode Command Line Tools, gfortran

@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{simulate_genecount_ES_refactored}
 \alias{simulate_genecount_ES_refactored}
-\title{(Refactored) Simulate expression count for a single gene}
+\title{(Refactored) Simulate expression counts for a single gene}
 \usage{
 simulate_genecount_ES_refactored(
   SEED,
@@ -17,27 +17,28 @@ simulate_genecount_ES_refactored(
 )
 }
 \arguments{
-\item{SEED}{Random seed for reproducibility}
+\item{SEED}{Integer random seed for reproducibility.}
 
-\item{coords_norm_sub}{Normalized coordinates for spots within the domain}
+\item{coords_norm_sub}{Data frame of normalized coordinates for spots within the domain.}
 
-\item{coords_norm_out}{Normalized coordinates for spots outside the domain}
+\item{coords_norm_out}{Data frame of normalized coordinates for spots outside the domain.}
 
-\item{nnGP_fit}{ouutput from parameter estimation step}
+\item{nnGP_fit}{Fitted NNGP model object for the gene.}
 
-\item{ES_factor}{Effect size factor}
+\item{seqDepth_factor}{Numeric scaling factor for sequencing depth.}
 
-\item{gene_count_row}{A numeric vector of counts for the gene of interest. # <-- CHANGED}
+\item{ES_factor}{Numeric scaling factor for effect size.}
 
-\item{all_spot_names}{A character vector of all spot names (from colnames). # <-- NEW}
+\item{gene_count_row}{Numeric vector of counts for the gene of interest.}
 
-\item{spot_idx}{Indices of spots within the domain}
+\item{all_spot_names}{Character vector of all spot names (column names of original count matrix).}
 
-\item{seq_depth_factor}{Sequencing depth factor}
+\item{spot_idx}{Numeric vector indicating indices of spots within the domain.}
 }
 \value{
-Simulated counts for the gene
+Numeric vector of simulated counts for all spots, ordered according to \code{all_spot_names}.
 }
 \description{
-(Refactored) Simulate expression count for a single gene
+A vectorized version of \code{simulate_genecount_ES}, designed to reduce memory usage by working
+with a single gene vector instead of the full count matrix.
 }

@@ -2,24 +2,27 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{simulation_EffectSize}
 \alias{simulation_EffectSize}
-\title{Simualte spatial transcriptomics data with modified effect size and sequencing depth}
+\title{Simulate spatial transcriptomics data with modified effect size and sequencing depth}
 \usage{
 simulation_EffectSize(shinyDesign, seq_depth_factor, effect_size_factor, SEED)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordiantes, gene expression and estimated parameters}
+\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates,
+gene expression and estimated parameters}
 
-\item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0 )}
+\item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0 ).}
 
-\item{effect_size_factor}{Numeric scaling factor for effect size (must be > 0)}
+\item{effect_size_factor}{Numeric scaling factor for effect size (must be > 0).}
 
-\item{SEED}{random seed for reproducibility (integer)}
+\item{SEED}{Integer random seed for reproducibility.}
 }
 \value{
-A \code{spatialdesign} object with simulated count matrix in the \code{simCounts} slot
+A \code{spatialdesign} object with simulated count matrix in the \code{simCounts} slot,
+and updated \code{simcolData} with spot metadata.
 }
 \description{
-Simualte spatial transcriptomics data with modified effect size and sequencing depth
+This function generates simulated spatial gene expression counts based on a fitted NNGP model.
+It allows scaling of sequencing depth and effect size for domain-informative genes.
 }
 \examples{
 \dontrun{

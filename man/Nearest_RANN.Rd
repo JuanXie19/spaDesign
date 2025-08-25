@@ -2,10 +2,19 @@
 % Please edit documentation in R/simulation_Spatial.r
 \name{Nearest_RANN}
 \alias{Nearest_RANN}
-\title{get the nearest neighbor index}
+\title{Get nearest neighbor indices between two sets of points}
 \usage{
 Nearest_RANN(source_matrix, target_matrix)
 }
+\arguments{
+\item{source_matrix}{Matrix of coordinates for source points (rows = points, columns = x,y).}
+
+\item{target_matrix}{Matrix of coordinates for target points (rows = points, columns = x,y).}
+}
+\value{
+Integer vector of nearest neighbor indices for each source point in the target matrix.
+If no neighbor is within minimal distance, the index is -1.
+}
 \description{
-get the nearest neighbor index
+Get nearest neighbor indices between two sets of points
 }

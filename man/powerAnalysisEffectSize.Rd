@@ -2,33 +2,38 @@
 % Please edit documentation in R/powerAnalysisEffectSize.r
 \name{powerAnalysisEffectSize}
 \alias{powerAnalysisEffectSize}
-\title{Power analysis}
+\title{Power analysis via effect size and sequencing depth simulations}
 \usage{
-powerAnalysisEffectSize(shinyDesign, es_range, seq_depth_range, n_rep)
+powerAnalysisEffectSize(shinyDesign, es_range, seq_depth_range, n_rep, n_cores)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object with estimated model parameters}
+\item{shinyDesign}{A \code{shinyDesign} object with estimated model parameters.}
 
-\item{es_range}{A numeric vector indicating the range of effect size scaling factors}
+\item{es_range}{A numeric vector of effect size scaling factors}
 
-\item{seq_depth_range}{A numeric vector indicating the range of sequencing depth scaling factors}
+\item{seq_depth_range}{A numeric vector of sequencing depth scaling factors.}
 
-\item{n_rep}{An integer indicating the number of replications for each scenario}
+\item{n_rep}{Integer, number of replications for each scenario.}
 
-\item{conda_env_path}{Specify the path to the conda environment for spaGCN}
-
-\item{python_script}{Specify the path to the python script}
+\item{n_cores}{Integer, number of CPU cores for parallelization (default: 2)}
 }
 \value{
-A data frame containing the sequencing depth, effect size, total counts, and NMI
+A data frame with columns:
+\itemize{
+\item \code{seq_depth}: Sequencing depth scaling factor
+\item \code{effect_size}: Effect size scaling factor
+\item \code{total_counts}: Total counts in simulated dataset
+\item \code{NMI}: Normalized Mutual Information between predicted and true labels
+}
 }
 \description{
-This function performs power analysis by simulating data with different effect sizes and sequencing depths.
+This function performs power analysis by simulating data under varying
+effect sizes and sequencing depths, followed by clustering evaluation.
 }
 \examples{
 # spadesign <- ...
 # es_range <- c(1, 2, 3)
 # seq_depth_range <- c(0.5, 1, 3, 5)
 # n_rep <- 10
-# results <- powerAnalysisEffectSize(shinyDesign, es_range, seq_depth_range, n_rep, conda_env_path) 
+# results <- powerAnalysisEffectSize(spadesign, es_range, seq_depth_range, n_rep, n_cores)
 }

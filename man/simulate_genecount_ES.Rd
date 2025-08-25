@@ -23,21 +23,22 @@ simulate_genecount_ES(
 
 \item{coords_norm_out}{Normalized coordinates for spots outside the domain}
 
-\item{nnGP_fit}{ouutput from parameter estimation step}
+\item{nnGP_fit}{Fitted NNGP model object for the gene.}
 
-\item{counts}{Count matrix}
+\item{seqDepth_factor}{Numeric scaling factor for sequencing depth.}
+
+\item{ES_factor}{Numeric scaling factor for effect size.}
+
+\item{counts}{Count matrix of gene expression (genes x spots)}
 
 \item{gene}{Gene name}
 
-\item{spot_idx}{Indices of spots within the domain}
-
-\item{seq_depth_factor}{Sequencing depth factor}
-
-\item{es_factor}{Effect size factor}
+\item{spot_idx}{Numeric vector indicating indices of spots within the domain.}
 }
 \value{
-Simulated counts for the gene
+Numeric vector of simulated counts for all spots, ordered to match the columns of \code{counts}.
 }
 \description{
-Simulate expression count for a single gene
+Generates Poisson-distributed expression counts for a single gene inside and outside a domain
+based on estimated NNGP parameters and specified scaling factors.
 }

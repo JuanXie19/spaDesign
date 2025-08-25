@@ -2,18 +2,28 @@
 % Please edit documentation in R/powerEvaluationSeurat.r
 \name{evaluatePowerSeurat}
 \alias{evaluatePowerSeurat}
-\title{Apply spaGCN to the simulated dataset to obtain predicted labels}
+\title{Evaluate clustering performance on simulated spatial transcriptomics data using Seurat}
 \usage{
 evaluatePowerSeurat(shinyDesign)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object with simulated count matrix}
+\item{shinyDesign}{A \code{shinyDesign} object containing:
+\itemize{
+\item \code{simCounts}: simulated count matrix (genes x spots).
+\item \code{simcolData}: spot metadata with domain assignments.
+}}
 }
 \value{
-The updated \code{shinyDesign} object with predicted labels and NMI
+The updated \code{shinyDesign} object with:
+\itemize{
+\item \code{simcolData$label_pred}: predicted cluster labels.
+\item \code{NMI}: numeric NMI between true and predicted labels.
+}
 }
 \description{
-Apply spaGCN to the simulated dataset to obtain predicted labels
+This function applies a Seurat-based clustering pipeline to a \code{shinyDesign} object
+with simulated counts. Clustering performance is evaluated against the true domains
+using Normalized Mutual Information (NMI).
 }
 \examples{
 # Assuming shinyDesign is a valid shinyDesign object

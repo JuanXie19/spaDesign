@@ -2,35 +2,38 @@
 % Please edit documentation in R/estimation_NNGP.r
 \name{estimation_NNGP}
 \alias{estimation_NNGP}
-\title{Estimate Parameters for Gaussian Process Model}
+\title{Estimate the NNGP Parameters for domain-informative genes}
 \usage{
 estimation_NNGP(
   shinyDesign,
   n_neighbors = 10,
-  ORDER = "AMMD",
+  order = "AMMD",
   X = NULL,
   verbose = FALSE
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordiantes and expression values for selected domain-informative genes}
+\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates in \code{refcolData}
+and expression values in \code{refCounts}.}
 
 \item{n_neighbors}{Number of nearest neighbors for NNGP fitting (default = 10)}
 
-\item{verbose}{Whether to display progress messages (default = FALSE)}
-
 \item{order}{Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD')}
+
+\item{X}{Optional design matrix of covariates}
+
+\item{verbose}{Logical, whether to display progress messages (default = FALSE)}
 }
 \value{
-Updated \code{shinyDesign} object with parameter estimates
+Updated \code{shinyDesign} object. The slot \code{paramsGP} is a nested list:
+\code{paramsGP[[domain]][[gene]]} contains the BRISC NNGP fit for that gene.
 }
 \description{
-Fits a Nearest-Neighbor Gaussian Process (NNGP) model to estimate spatial parameters
-for each domain-informative gene.
+Fits a Nearest-Neighbor Gaussian Process (NNGP) model for each domain-informative gene.
 }
 \examples{
-## Example usage
+\donotrun{
 toyDATA <- createshinyDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, ORDER = 'AMMD', verbose = FALSE)
-
+toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD', X = NULL, verbose = FALSE)
+}
 }

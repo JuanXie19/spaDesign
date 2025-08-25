@@ -2,20 +2,20 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{mean_out}
 \alias{mean_out}
-\title{Calculate the Mean for Outside Domain Spots}
+\title{Compute mean expression for spots outside the domainO}
 \usage{
 mean_out(counts, gene, spot_idx)
 }
 \arguments{
-\item{counts}{A matrix where rows represent genes and columns represent spots.}
+\item{counts}{Matrix of gene expression counts (genes x spots).}
 
-\item{gene}{A character string representing the gene of interest.}
+\item{gene}{Character string specifying the gene name.}
 
 \item{spot_idx}{Numeric vector indicating the indices of spots within the domain.}
 }
 \value{
-A numeric value representing the mean of the lower half of counts outside the domain for the given gene.
+Numeric value representing the mean of the lower half of counts outside the domain for the given gene.
 }
 \description{
-This function calculates the mean of the lower half of counts outside the domain for a given gene.
+Calculates the mean of the lower half of expression counts for spots outside the domain for a given gene.
 }
