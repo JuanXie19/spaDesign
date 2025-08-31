@@ -125,15 +125,15 @@ dataInputServer <- function(id, reference_data_paths) {
           
           withProgress(message = "Running clustering to predict domains...", {
             # --- Seurat Clustering Pipeline ---
-            seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
-            seurat <- NormalizeData(seurat)
-            seurat <- FindVariableFeatures(seurat, selection.method = 'vst')
+            seurat <- Seurat::CreateSeuratObject(counts = counts, assay = 'RNA')
+            seurat <- Seurat::NormalizeData(seurat)
+            seurat <- Seurat::FindVariableFeatures(seurat, selection.method = 'vst')
             all.genes <- rownames(seurat)
-            seurat <- ScaleData(seurat, features = all.genes)
-            seurat <- RunPCA(seurat)
-            seurat <- RunUMAP(seurat, dims = 1:30)
-            seurat <- FindNeighbors(seurat, dims = 1:30)
-            seurat <- FindClusters(seurat, resolution = 2)
+            seurat <- Seurat::ScaleData(seurat, features = all.genes)
+            seurat <- Seurat::RunPCA(seurat)
+            seurat <- Seurat::RunUMAP(seurat, dims = 1:30)
+            seurat <- Seurat::FindNeighbors(seurat, dims = 1:30)
+            seurat <- Seurat::FindClusters(seurat, resolution = 2)
             
             X <- Seurat::AggregateExpression(seurat, assays=DefaultAssay(seurat),
                                              slot="scale.data", group.by="seurat_clusters")[[1]]
