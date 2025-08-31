@@ -52,13 +52,13 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
         data.frame(
           seq_depth = seq_depth_factor, 
           effect_size = effect_size_factor, 
-          total_counts = sum(simCounts(shinyDesign)), 
+          total_counts = sum(shinyDesign@simCounts), 
           NMI = rst@NMI)
     }
     
     
     
-    results <- pbmcapply::pbmclapply(1:nrow(param_grid), function(i){
+    results <- mclapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
     }, mc.cores = n_cores)
     results <- do.call(rbind, results)
