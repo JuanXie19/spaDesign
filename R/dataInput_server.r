@@ -41,7 +41,7 @@ dataInputServer <- function(id, reference_data_paths) {
           # Read tissue_positions_list.csv
           # Assuming standard SpaceRanger tissue_positions_list.csv format:
           # barcode, in_tissue, array_row, array_col, px_row_in_full_image, px_col_in_full_image
-          coords_raw <- fread(input$positions_file$datapath, header = FALSE)
+          coords_raw <- data.table::fread(input$positions_file$datapath, header = FALSE)
           colnames(coords_raw) <- c("barcode", "in_tissue", "array_row", "array_col", "px_row", "px_col")
           
           # Filter for spots "in_tissue" and select relevant columns for coords
@@ -165,19 +165,19 @@ dataInputServer <- function(id, reference_data_paths) {
      
       tryCatch({
         withProgress(message = "Creating design object...", {
-          DATA <- shinyDesign2::createDesignObject(count_matrix = counts, loc = coords)
+          DATA <- createDesignObject(count_matrix = counts, loc = coords)
         })
         withProgress(message = "Selecting domain informative genes...", {
-          DATA <- shinyDesign2::featureSelection(DATA,
-                                                 logfc_cutoff = logfc_cutoff,
+          DATA <- featureSelection(DATA,
+                                                logfc_cutoff = logfc_cutoff,
                                                  mean_in_cutoff = mean_in_cutoff,
-                                                 max_num_gene = max_num_gene)
+                                                 max_num_gene = max_num_gene, n_cores = 1)
         })
-        withProgress(message = "Learning gene spatial expression patterns...", {
-          DATA <- estimation_NNGP(DATA, n_neighbors = 10, ORDER = 'AMMD')
-        })
+        #withProgress(message = "Learning gene spatial expression patterns...", {
+         # DATA <- estimation_NNGP(DATA, n_neighbors = 10, order = 'AMMD')
+        #})
         withProgress(message = "Learning domain spatial patterns...", {
-          DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1)
+          DATA <- estimation_FGEM(DATA, iter_max = 1000, M_candidates = 2:7, tol = 1e-1, n_cores = 1)
         })
         
         return(DATA)
