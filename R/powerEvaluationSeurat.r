@@ -58,8 +58,8 @@ evaluatePowerSeurat <- function(shinyDesign) {
 	  seurat <- RenameIdents(seurat,new_labels)
 	  seurat$label_pred <- Idents(seurat)
 	
-    nmi <- NMI(seurat$true_domain, seurat$label_pred, variant = "sqrt")
-    simcolData(shinyDesign)$label_pred <- seurat$label_pred
+    nmi <- aricode::NMI(seurat$true_domain, seurat$label_pred, variant = "sqrt")
+    shinyDesign@simcolData$label_pred <- seurat$label_pred
     shinyDesign@NMI <- nmi
 
     message('Performance evaluation complete. NMI: ', round(nmi,3))
