@@ -51,7 +51,7 @@ powerAnalysisSpatial <- function(shinyDesign, SIGMA, prop_range, seq_depth_range
 
         message(sprintf("Simulating data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
-        DATA <- simulation_Spatial(shinyDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop)
+        DATA <- simulation_Spatial(shinyDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores = n_cores)
         
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
@@ -66,7 +66,7 @@ powerAnalysisSpatial <- function(shinyDesign, SIGMA, prop_range, seq_depth_range
                    NMI = NMI)
     }
   
-    results <- pbmcapply::pbmclapply(1:nrow(param_grid), function(i){
+    results <- mclapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
     }, mc.cores = n_cores)
     results <- do.call(rbind, results)
