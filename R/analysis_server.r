@@ -49,19 +49,19 @@ analysisServer <- function(id, data_obj){
       seq_range <- c(0.5, 1:3, 5, 7, 10)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, 
-                                            seq_depth_range = seq_range, n_rep = 5)
+                                            seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
         base_res$condition <- 'Original'
         results <- list(base = base_res)
         
         if(input$simulation_type == "effect_size"){
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
-                                                seq_depth_range = seq_range, n_rep = 5)
+                                                seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
           effect_res$condition <- paste('Effect Size:', input$effect_size)
           results$effect <- effect_res
           
         } else if(input$simulation_type == "spatial"){
           spatial_res <- powerAnalysisSpatial(data_obj(), SIGMA = input$sigma, prop_range = 0.8,
-                                              seq_depth_range = seq_range, n_rep = 5)
+                                              seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
           spatial_res$condition <- paste('Spatial (Sigma):', input$sigma)
           results$spatial <- spatial_res
         }
