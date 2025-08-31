@@ -25,7 +25,7 @@
 #' # Access the selected genes
 #' top_genes <- my_spadesign@topGenes
 
-featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_gene){
+featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_gene, n_cores){
 	
     if (!is.numeric(logfc_cutoff) || logfc_cutoff <= 0) stop("'logfc_cutoff' must be a positive numeric value.")
     if (!is.numeric(mean_in_cutoff) || mean_in_cutoff <= 0) stop("'mean_in_cutoff' must be a positive numeric value.")
@@ -46,7 +46,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
             idx <- base::union(idx1, idx2)
         }
         
-        selected <- DF[idx, drop = FALSE]
+        selected <- DF[idx, ,drop = FALSE]
         if (nrow(selected) > max_num_gene) {
             selected_genes <- DF[idx, ] %>%
                 dplyr::arrange(-abs(logFC_low)) %>%
@@ -57,7 +57,7 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
         }
         message("Completed gene selection")
         return(selected_genes)
-    }, mc.cores = 4)
+    }, mc.cores = n_cores)
     names(top_genes) <- names(FC_list)
 	  shinyDesign@topGenes <- top_genes
 	  message("Completed gene selection for all domains.")
