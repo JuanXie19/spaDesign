@@ -141,7 +141,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
   }
   
   REPEAT <- 1000
-  COUNT.SIM_LIST <- future_lapply(seq_len(REPEAT), function(i) {
+  COUNT.SIM_LIST <- future.apply::future_lapply(seq_len(REPEAT), function(i) {
     generateCount_fast()
   }, future.seed = TRUE)
   COUNT.SIM <- Reduce(`+`, COUNT.SIM_LIST) / REPEAT
@@ -375,7 +375,7 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
   
   #### find the best matching between simulated points and original domain points using Hungarian algorithm
   
-    distances <- as.matrix(pdist(coords_norm_sub[, c('x', 'y')], NN.unique[,c('x', 'y')]))  # distance between existing loc and simulated loc
+    distances <- as.matrix(pdist::pdist(coords_norm_sub[, c('x', 'y')], NN.unique[,c('x', 'y')]))  # distance between existing loc and simulated loc
     sol <- clue::solve_LSAP(distances)
   
     reorder.syn <- as.vector(sol)
