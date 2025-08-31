@@ -18,8 +18,12 @@
 #' }
 createDesignObject <- function(count_matrix, loc) {
     # Check count_matrix
-    if (!is.matrix(count_matrix)) stop("count_matrix must be a matrix")
-    if (!is.numeric(count_matrix)) stop("count_matrix must contain numeric values")
+    if (!(is.matrix(count_matrix) || inherits(count_matrix, "Matrix"))) {
+      stop("count_matrix must be a base matrix or a Matrix object")
+    }
+    if (!(is.numeric(count_matrix) || inherits(count_matrix, "Matrix"))) {
+      stop("count_matrix must contain numeric values or be a sparse Matrix object")
+    }
   
     # Check loc
     if (!inherits(loc, "data.frame")) loc <- as.data.frame(loc)
