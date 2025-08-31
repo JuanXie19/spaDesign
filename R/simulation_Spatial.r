@@ -36,7 +36,7 @@
 #'                                    prop = 0.7)
 #' }
 
-simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop){
+simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores){
   
   if (is.null(selected_M_list)) {
     if (!is.null(shinyDesign@selected_M_list_AIC)) {
@@ -106,13 +106,13 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
   message('Simulating count matrix for disturbed spots location...')
   
 
-  worse_count <- pbmcapply::pbmclapply(seq_along(par_GP), function(d){
+  worse_count <- mclapply(seq_along(par_GP), function(d){
     domain <- names(par_GP)[d]
     GP.par <- par_GP[[d]]
     FG.par <- FG_selected_model[[d]]
     
     simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
-  }, mc.cores = 4)
+  }, mc.cores = n_cores)
   worse_count <- do.call('rbind', worse_count)
   
   generateCount <- function(){
