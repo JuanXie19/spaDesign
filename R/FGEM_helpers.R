@@ -1,5 +1,4 @@
 library(movMF)
-library(mvtnorm)
 library(matrixStats)
 library(Directional)
 
