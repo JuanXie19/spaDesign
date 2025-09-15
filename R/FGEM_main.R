@@ -388,11 +388,11 @@ plot_density_FG_EM <- function(N, rst){
   z <- matrix(data = NA,nrow = N,ncol = D)
   
   
-  kr_label <- sapply(1:N,function(u){v <- rmultinom(n = 1,size = 1,prob = Pi); return(which.max(v))})
+  kr_label <- sapply(1:N,function(u){v <- stats::rmultinom(n = 1,size = 1,prob = Pi); return(which.max(v))})
   for(k in 1:M){
       idx <- which(kr_label == k)
       if(length(idx) > 0){
-          yy <- rvmf(length(idx), phi[k, ],tau[k])
+          yy <- Directional::rvmf(length(idx), phi[k, ],tau[k])
           if(length(idx) == 1){
             z[idx,] <- cntr[k, ] + rd[k] * yy
           }
@@ -402,7 +402,7 @@ plot_density_FG_EM <- function(N, rst){
       }
       
   }
-  error <- mvrnorm(N, rep(0, D), sigma.sq * diag(D))
+  error <- MASS::mvrnorm(N, rep(0, D), sigma.sq * diag(D))
   w <- z + error
   if(D == 2){
     par(mfrow=c(1,2))
