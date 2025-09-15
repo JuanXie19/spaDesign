@@ -28,8 +28,16 @@ Imports:
     readr,
     Matrix,
     matrixStats,
-    mvtnorm,
     movMF,
+    data.table,
+    BRISC,
+    Directional,
+    MASS,
+    igraph,
+    pdist,
+    RANN,
+    clue,
+    future.apply,
     Rfast
 Suggests:
     testthat (>= 3.0.0),
