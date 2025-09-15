@@ -36,7 +36,7 @@
 #' # Assuming shinyDesign is a valid shinyDesign object
 #' # result <- estimation_FGEM(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE)
 
-estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE){
+estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 4, verbose = FALSE){
 	message("DEBUG: Entering estimation_FGEM with iter_max=", iter_max)
 	
   # input validation
