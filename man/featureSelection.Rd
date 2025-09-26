@@ -7,7 +7,13 @@ This function selects genes with large absolute fold change and high within-doma
 for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
 \code{shinyDesign} object.}
 \usage{
-featureSelection(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_gene)
+featureSelection(
+  shinyDesign,
+  logfc_cutoff,
+  mean_in_cutoff,
+  max_num_gene,
+  n_cores
+)
 }
 \arguments{
 \item{shinyDesign}{A \code{shinyDesign} object.}

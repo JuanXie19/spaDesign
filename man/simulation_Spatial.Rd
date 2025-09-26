@@ -10,7 +10,8 @@ simulation_Spatial(
   seq_depth_factor,
   SIGMA,
   SEED,
-  prop
+  prop,
+  n_cores
 )
 }
 \arguments{

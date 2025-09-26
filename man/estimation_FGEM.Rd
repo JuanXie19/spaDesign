@@ -9,7 +9,7 @@ estimation_FGEM(
   iter_max = 1000,
   M_candidates = 2:5,
   tol = 0.1,
-  n_cores = 2,
+  n_cores = 4,
   verbose = FALSE
 )
 }
