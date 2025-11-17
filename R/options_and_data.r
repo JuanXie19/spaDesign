@@ -4,6 +4,6 @@
 
 # pilot/reference data paths (from your package)
 reference_data_paths <- list(
-  "Chicken Heart" = system.file("extdata/ref_chicken_heart.rds", package = "shinyDesign2"),
-  "Human Brain"   = system.file("extdata/ref_human_brain.rds", package = "shinyDesign2")
+  "Chicken Heart" = system.file("extdata/ref_chicken_heart.rds", package = pkgname),
+  "Human Brain"   = system.file("extdata/ref_human_brain.rds", package = pkgname)
 )
