@@ -16,7 +16,7 @@ dataInputServer <- function(id, reference_data_paths) {
   moduleServer(id, function(input, output, session) {
     
     # update choices for reference data once
-    updateSelectInput(session, "reference_dataset", choices = names(reference_data))
+    updateSelectInput(session, "reference_dataset", choices = names(reference_data_paths))
     
     #================================================================
     # 1. Reactive for Raw Data Input
