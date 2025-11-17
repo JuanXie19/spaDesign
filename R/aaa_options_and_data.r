@@ -1,3 +1,5 @@
+reference_data_paths <- NULL
+
 .onLoad <- function(libname, pkgname) {
   options(shiny.maxRequestSize = 300 * 1024^2)
   reference_data_paths <- list(

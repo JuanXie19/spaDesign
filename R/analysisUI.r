@@ -4,6 +4,8 @@
 #' UI for simulation and analysis tab. Allows effect size and spatial perturbation simulations.
 #'
 #' @param id Module namespace.
+#' @importFrom plotly plotlyOutput
+#' @importFrom shinyBS bsTooltip
 #' @return Shiny UI element.
 #' @export
 
@@ -23,7 +25,7 @@ analysisUI <- function(id){
         condition = sprintf("input['%s'] == 'effect_size'", ns("simulation_type")),
         sliderInput(ns("effect_size"), "Effect size:", min = 1, max = 3, value = 1.5, step = 0.5),
         # You can add the info icon and tooltip here if you like
-        bsTooltip(id = ns("effect_size"), title = "A value of 1 means original effect size, while 2 means twice the original effect size. Larger values lead to a stronger signal.", placement = "right")
+        shinyBS::bsTooltip(id = ns("effect_size"), title = "A value of 1 means original effect size, while 2 means twice the original effect size. Larger values lead to a stronger signal.", placement = "right")
       ),
       
       # Conditional panel for the spatial noise slider
@@ -31,14 +33,14 @@ analysisUI <- function(id){
         # Condition now depends on the 'spatial' radio button choice
         condition = sprintf("input['%s'] == 'spatial'", ns("simulation_type")),
         sliderInput(ns("sigma"), "Sigma(spatial noise):", min = 0.5, max = 3, value = 1, step = 0.5),
-        bsTooltip(id = ns("sigma"), title = "Larger sigma leads to more disturbed spatial pattern.", placement = "right")
+        shinyBS::bsTooltip(id = ns("sigma"), title = "Larger sigma leads to more disturbed spatial pattern.", placement = "right")
       ),
       actionButton(ns("run_sim"), "Run simulation", class = "btn-primary")
     ),
     
     # main panel
     mainPanel(
-      plotlyOutput(ns("sim_plot")),
+      plotly::plotlyOutput(ns("sim_plot")),
       tags$h4("Detailed simulation results"),
       DT::DTOutput(ns("sim_table")),
       hr(),
