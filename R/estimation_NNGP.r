@@ -2,14 +2,14 @@
 #'
 #' Fits a Nearest-Neighbor Gaussian Process (NNGP) model for each domain-informative gene.
 #'
-#' @param shinyDesign A \code{shinyDesign} object containing spatial coordinates in \code{refcolData}
+#' @param spaDesign A \code{spaDesign} object containing spatial coordinates in \code{refcolData}
 #' and expression values in \code{refCounts}.
 #' @param n_neighbors Number of nearest neighbors for NNGP fitting (default = 10)
 #' @param order Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD')
 #' @param X Optional design matrix of covariates
 #' @param verbose Logical, whether to display progress messages (default = FALSE)
 #' 
-#' @return Updated \code{shinyDesign} object. The slot \code{paramsGP} is a nested list:
+#' @return Updated \code{spaDesign} object. The slot \code{paramsGP} is a nested list:
 #' \code{paramsGP[[domain]][[gene]]} contains the BRISC NNGP fit for that gene.
 #' 
 #' @import igraph
@@ -19,14 +19,14 @@
 #' @export
 #' @examples
 #' \donotrun{
-#' toyDATA <- createshinyDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
+#' toyDATA <- createspaDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
 #' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD', X = NULL, verbose = FALSE)
 #'}
 
-estimation_NNGP <- function(shinyDesign, n_neighbors = 10, order = 'AMMD',X = NULL, verbose = FALSE){
+estimation_NNGP <- function(spaDesign, n_neighbors = 10, order = 'AMMD',X = NULL, verbose = FALSE){
 
-    loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
-    count_matrix <- refCounts(shinyDesign)
+    loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
+    count_matrix <- refCounts(spaDesign)
     
     ## scale the coordinates to [0,1] range
     coords_norm <- igraph::norm_coords(as.matrix(loc_file[,c('x','y')]),xmin = 0, xmax = 1, ymin = 0, ymax = 1)
@@ -34,10 +34,10 @@ estimation_NNGP <- function(shinyDesign, n_neighbors = 10, order = 'AMMD',X = NU
     coords_norm$domain <- loc_file$domain
 
     DOMAIN <- sort(unique(loc_file$domain))
-    topGenes <- topGenes(shinyDesign)
+    topGenes <- topGenes(spaDesign)
 
     if (is.null(topGenes) || length(topGenes) == 0) {
-        stop("topGenes is NULL or empty. Check the shinyDesign object.")
+        stop("topGenes is NULL or empty. Check the spaDesign object.")
     }
     
     RST <- lapply(seq_along(topGenes), function(i){
@@ -74,8 +74,8 @@ estimation_NNGP <- function(shinyDesign, n_neighbors = 10, order = 'AMMD',X = NU
 	
     names(RST) <- names(topGenes)
     
-    shinyDesign@paramsGP <- RST
-    return(shinyDesign)    
+    spaDesign@paramsGP <- RST
+    return(spaDesign)    
 }
 
 

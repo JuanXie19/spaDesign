@@ -1,14 +1,14 @@
-#' Create a shinyDesign object
+#' Create a spaDesign object
 #' 
 #' @description
-#' Creates a \code{shinyDesign} object to store reference and simulated count data,
+#' Creates a \code{spaDesign} object to store reference and simulated count data,
 #' along with associated spatial metadata and optional model parameters.
 #'
 #' @param count_matrix A numeric matrix of gene expression count(genes x spots)
 #' @param loc A \code{data.frame} containing the spatial coordinates and domain information for spots, 
 #'            Required columns: 'x', 'y', and 'domain'.
 #'          
-#' @return A \code{shinyDesign} object 
+#' @return A \code{spaDesign} object 
 #' @importFrom methods new validObject
 #' @export
 #' 
@@ -49,9 +49,9 @@ createDesignObject <- function(count_matrix, loc) {
         loc <- as.data.frame(loc)
     }
     
-    ## Create the shinyDesign object
+    ## Create the spaDesign object
     object <- new(
-        Class = "shinyDesign",
+        Class = "spaDesign",
         refCounts = count_matrix,
         refcolData = loc,
         refrowData = loc,  # Assuming similar structure for rowData; adjust if needed
@@ -66,7 +66,7 @@ createDesignObject <- function(count_matrix, loc) {
     
     ## Validate the object
     if (!validObject(object)) {
-        stop("The created shinyDesign object is not valid.")
+        stop("The created spaDesign object is not valid.")
     }
     
     return(object)

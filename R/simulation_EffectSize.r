@@ -3,7 +3,7 @@
 #' This function generates simulated spatial gene expression counts based on a fitted NNGP model.
 #' It allows scaling of sequencing depth and effect size for domain-informative genes.
 #'
-#' @param shinyDesign A \code{shinyDesign} object containing spatial coordinates, 
+#' @param spaDesign A \code{spaDesign} object containing spatial coordinates, 
 #'    gene expression and estimated parameters
 #' @param seq_depth_factor Numeric scaling factor for sequencing depth (must be > 0 ).
 #' @param effect_size_factor Numeric scaling factor for effect size (must be > 0).
@@ -21,7 +21,7 @@
 #'                                        SEED = 123)
 #' }
 
-simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED){
+simulation_EffectSize <- function(spaDesign, seq_depth_factor, effect_size_factor, SEED){
 
     if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
         stop("seq_depth_factor must be a positive numeric value.")
@@ -31,9 +31,9 @@ simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_fac
     }
 	
 	# extract reference data
-    count_matrix <- refCounts(shinyDesign)    
-    loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
-    par_GP <- paramsGP(shinyDesign)
+    count_matrix <- refCounts(spaDesign)    
+    loc_data <- refcolData(spaDesign)[, c('x', 'y', 'domain')]
+    par_GP <- paramsGP(spaDesign)
     
     ## scale the coordinates to [0,1] range
     coords_norm <- igraph::norm_coords(as.matrix(loc_data[,c('x', 'y')]),xmin = 0, xmax = 1, ymin = 0, ymax = 1)
@@ -95,10 +95,10 @@ simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_fac
     if (length(all_count) > 0) {
         all_count <- do.call(rbind, all_count)
         if (is.matrix(all_count) || is.data.frame(all_count)) {
-            shinyDesign@simCounts <- all_count
-            shinyDesign@simcolData <- refcolData(shinyDesign)
+            spaDesign@simCounts <- all_count
+            spaDesign@simcolData <- refcolData(spaDesign)
             message("Simulation complete.\n")
-            return(shinyDesign)
+            return(spaDesign)
         } else {
             stop("Combined all_count is not a matrix or data frame.")
         }
@@ -113,15 +113,15 @@ simulation_EffectSize <- function(shinyDesign, seq_depth_factor, effect_size_fac
 #' This function generates simulated spatial gene expression counts based on a fitted NNGP model.
 #' It allows scaling of sequencing depth and effect size for domain-informative genes.
 #'
-#' @param shinyDesign A \code{shinyDesign} object containing spatial coordinates, gene expression, 
+#' @param spaDesign A \code{spaDesign} object containing spatial coordinates, gene expression, 
 #'   and estimated NNGP parameters.
 #' @param seq_depth_factor Numeric scaling factor for sequencing depth (must be > 0).
 #' @param effect_size_factor Numeric scaling factor for effect size (must be > 0).
 #' @param SEED Integer random seed for reproducibility.
-#' @return A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts}, 
+#' @return A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, 
 #'   and updated \code{simcolData} with spot metadata.
 #'   
-simulation_EffectSize_refactored <- function(shinyDesign, seq_depth_factor, effect_size_factor, SEED){
+simulation_EffectSize_refactored <- function(spaDesign, seq_depth_factor, effect_size_factor, SEED){
   
   if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
     stop("seq_depth_factor must be a positive numeric value.")
@@ -131,10 +131,10 @@ simulation_EffectSize_refactored <- function(shinyDesign, seq_depth_factor, effe
   }
   
   # extract reference data
-  count_matrix <- refCounts(shinyDesign)
+  count_matrix <- refCounts(spaDesign)
   all_spot_names <- colnames(count_matrix) # <-- Extract spot names once
-  loc_data <- refcolData(shinyDesign)[, c('x', 'y', 'domain')]
-  par_GP <- paramsGP(shinyDesign)
+  loc_data <- refcolData(spaDesign)[, c('x', 'y', 'domain')]
+  par_GP <- paramsGP(spaDesign)
   
   ## scale the coordinates ... (this part is unchanged) ...
   coords_norm <- igraph::norm_coords(as.matrix(loc_data[,c('x', 'y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
@@ -206,10 +206,10 @@ simulation_EffectSize_refactored <- function(shinyDesign, seq_depth_factor, effe
   all_count <- Filter(Negate(is.null), all_count)
   if (length(all_count) > 0) {
     all_count <- do.call(rbind, all_count)
-    shinyDesign@simCounts <- all_count
-    shinyDesign@simcolData <- refcolData(shinyDesign)
+    spaDesign@simCounts <- all_count
+    spaDesign@simcolData <- refcolData(spaDesign)
     message("Simulation complete.\n")
-    return(shinyDesign)
+    return(spaDesign)
   } else {
     stop("All domain simulations returned NULL.")
   }

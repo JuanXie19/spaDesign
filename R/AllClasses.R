@@ -1,8 +1,8 @@
-#' @title Class \code{shinyDesign}
+#' @title Class \code{spaDesign}
 #' 
 #' @description 
-#' The \code{shinyDesign} class is used to store and manage data relevant to power analysis 
-#' within the \code{shinyDesign} package. It holds both reference and simulated count data, associated meta data,
+#' The \code{spaDesign} class is used to store and manage data relevant to power analysis 
+#' within the \code{spaDesign} package. It holds both reference and simulated count data, associated meta data,
 #' and optional parameters from fitted models.
 #' 
 #' @slot refCounts A matrix-like object (e.g., \code{Matrix::dgCMatrix}) of reference counts.
@@ -19,7 +19,7 @@
 #' @slot NMI Normalized mutual information value (numeric or object).
 #' 
 #' @details
-#' The \code{shinyDesign} class includes the following slots:
+#' The \code{spaDesign} class includes the following slots:
 #' \describe{
 #'   \item{\code{refCounts}}{A slot for reference count data}
 #'   \item{\code{refcolData}}{A \code{data.frame} containing column-level metadata for reference counts.}
@@ -39,7 +39,7 @@
 #' This class provides a container for storing both observed and simulated 
 #' spatial transcriptomics data, along with results from downstream modeling.
 #' 
-#' @return A \code{shinyDesign} object.
+#' @return A \code{spaDesign} object.
 #' 
 #' @importFrom S4Vectors DataFrame
 #' @importFrom methods setClassUnion setClass
@@ -48,7 +48,7 @@
 setClassUnion(name = 'OptionalList', members = c('NULL', 'list'))
 setClassUnion(name = 'OptionalCharacter', members = c('NULL', 'character'))
 
-setClass('shinyDesign',
+setClass('spaDesign',
     slots = list(
         refCounts = 'ANY',
         refcolData = 'data.frame',

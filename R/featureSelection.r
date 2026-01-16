@@ -1,14 +1,14 @@
 #' Select Domain-Informative Genes for Each Spatial Domain
 #' This function selects genes with large absolute fold change and high within-domain expression
 #' for each spatial domain. The selected genes are stored in the `topGenes` slot of the
-#' `shinyDesign` object.
+#' `spaDesign` object.
 #'
-#' @param shinyDesign A \code{shinyDesign} object.
+#' @param spaDesign A \code{spaDesign} object.
 #' @param logfc_cutoff Numeric value specifying the threshold for log fold change, 
 #' used to select genes with significant differential expression within vs outside domain.
 #' @param mean_in_cutoff Numeric value specifying the minimum mean log-transformed expression within the domain.
 #' @param max_num_gene Integer specifying the maximum number of genes that can be selected per spatial domain.
-#' @return Returns the input \code{shinyDesign} object with the `topGenes` slot updated
+#' @return Returns the input \code{spaDesign} object with the `topGenes` slot updated
 #'         with the selected genes for each domain.
 #'         
 #' @details Genes are selected by filtering based on `logfc_cutoff` and `mean_in_cutoff`.
@@ -20,19 +20,19 @@
 #' @import pbmcapply
 #' @export
 #' @examples
-#' # Assuming you have a shinyDesign object named `my_spadesign`
+#' # Assuming you have a spaDesign object named `my_spadesign`
 #' my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = 0.7, mean_in_cutoff = 2, max_num_gene = 10)
 #' # Access the selected genes
 #' top_genes <- my_spadesign@topGenes
 
-featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_gene, n_cores){
+featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene, n_cores){
 	
     if (!is.numeric(logfc_cutoff) || logfc_cutoff <= 0) stop("'logfc_cutoff' must be a positive numeric value.")
     if (!is.numeric(mean_in_cutoff) || mean_in_cutoff <= 0) stop("'mean_in_cutoff' must be a positive numeric value.")
 
 
-	count_matrix <- refCounts(shinyDesign)
-	loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
+	count_matrix <- refCounts(spaDesign)
+	loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
 	
 	FC_list <- geneSummary(count_matrix, loc_file)
 	
@@ -59,10 +59,10 @@ featureSelection <- function(shinyDesign, logfc_cutoff, mean_in_cutoff, max_num_
         return(selected_genes)
     }, mc.cores = n_cores)
     names(top_genes) <- names(FC_list)
-	  shinyDesign@topGenes <- top_genes
+	  spaDesign@topGenes <- top_genes
 	  message("Completed gene selection for all domains.")
 	  
-    return(shinyDesign)
+    return(spaDesign)
 }
 
 

@@ -3,7 +3,7 @@
 #' This function performs power analysis by simulating data under varying
 #' effect sizes and sequencing depths, followed by clustering evaluation.
 #'
-#' @param shinyDesign A \code{shinyDesign} object with estimated model parameters.
+#' @param spaDesign A \code{spaDesign} object with estimated model parameters.
 #' @param es_range A numeric vector of effect size scaling factors
 #' @param seq_depth_range A numeric vector of sequencing depth scaling factors.
 #' @param n_rep Integer, number of replications for each scenario.
@@ -26,7 +26,7 @@
 #' @export
 
 
-powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_rep, n_cores) {
+powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range, n_rep, n_cores) {
     # Create a data frame of all combinations of es_range, seq_depth_range, and n_rep
     param_grid <- expand.grid(seq_depth = seq_depth_range, 
                               effect_size = es_range, 
@@ -42,17 +42,17 @@ powerAnalysisEffectSize <- function(shinyDesign, es_range, seq_depth_range, n_re
         message(sprintf("Simulating data with seq_depth_factor = %s, effect_size_factor = %s, SEED = %s", 
                         seq_depth_factor, effect_size_factor, SEED))
     
-        shinyDesign <- simulation_EffectSize_refactored(shinyDesign, seq_depth_factor, effect_size_factor, SEED)
+        spaDesign <- simulation_EffectSize_refactored(spaDesign, seq_depth_factor, effect_size_factor, SEED)
         
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, effect_size_factor = %s, SEED = %s", 
                         seq_depth_factor, effect_size_factor, SEED))
         
-		    rst <- evaluatePowerSeurat(shinyDesign)
+		    rst <- evaluatePowerSeurat(spaDesign)
 
         data.frame(
           seq_depth = seq_depth_factor, 
           effect_size = effect_size_factor, 
-          total_counts = sum(shinyDesign@simCounts), 
+          total_counts = sum(spaDesign@simCounts), 
           NMI = rst@NMI)
     }
     

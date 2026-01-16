@@ -1,9 +1,9 @@
 #' Estimate the parameters for simplified Fisher-Gaussian kernel mixture model via EM algorithm
 #'
 #' Fits a Fisher-Gaussian kernel mixture model to the spatial coordinates
-#' (per domain) using the EM algorithm, and stores results in the \code{shinyDesign} object.
+#' (per domain) using the EM algorithm, and stores results in the \code{spaDesign} object.
 #' 
-#' @param shinyDesign A \code{shinyDesign} object containing spatial spatial metadata in \code{refcolData}
+#' @param spaDesign A \code{spaDesign} object containing spatial spatial metadata in \code{refcolData}
 #'   with columns \code{"x"}, \code{"y"}, and \code{"domain"} (one row per spot).
 #' @param iter_max Maximum number of EM iterations (default = 1000)
 #' @param M_candiate Integer vector of candidate mixture sizes to try (default = 2:5)
@@ -12,7 +12,7 @@
 #' on windows this is treated as sequential.
 #' @param verbose Logical; if \code{TRUE}, print progress messages (default = TRUE).
 #' 
-#' return Updated \code{shinyDesign} object with Fisher-Gaussian parameter estimates and M list:
+#' return Updated \code{spaDesign} object with Fisher-Gaussian parameter estimates and M list:
 #'   \itemize{
 #'     \item \code{paramsFG}: list of per-domain fit results (from \code{select_best_M}).
 #'     \item \code{selected_M_list_BIC}: named integer vector of best M by BIC (NA if failed).
@@ -33,10 +33,10 @@
 #' @import truncnorm
 #' @export
 #' @examples
-#' # Assuming shinyDesign is a valid shinyDesign object
-#' # result <- estimation_FGEM(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE)
+#' # Assuming spaDesign is a valid spaDesign object
+#' # result <- estimation_FGEM(spaDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE)
 
-estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 4, verbose = FALSE){
+estimation_FGEM <- function(spaDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 4, verbose = FALSE){
 	message("DEBUG: Entering estimation_FGEM with iter_max=", iter_max)
 	
   # input validation
@@ -54,7 +54,7 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
     stop("n_cores must be a positive integer.")
   }
 	
-  loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
+  loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
     
   ## scale the coordinates to [0,1] range
   coords_norm <- igraph::norm_coords(as.matrix(loc_file[,c('x','y')]), 
@@ -71,10 +71,10 @@ estimation_FGEM <- function(shinyDesign, iter_max = 1000, M_candidates = 2:5, to
 	   
   message('Completed fitting Fisher-Gaussian mixture models for all domains')
   names(RST) <- DOMAIN
-  shinyDesign@paramsFG <- RST
-	shinyDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
-	shinyDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
-  return(shinyDesign)
+  spaDesign@paramsFG <- RST
+	spaDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
+	spaDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
+  return(spaDesign)
 }
 
 

@@ -3,7 +3,7 @@
 #' This function performs power analysis by simulating spatial data under
 #'  different proportions of undisturbed patterns and sequencing depths.
 #' 
-#' @param shinyDesign A \code{shinyDesign} object with estimated model parameters.
+#' @param spaDesign A \code{spaDesign} object with estimated model parameters.
 #' @param SIGMA A numeric value indicating the Gaussian noise level.
 #' @param prop_range A numeric vector indicating the range of proportions 
 #'  (proportion of genes with undisturbed pattern).
@@ -27,10 +27,10 @@
 #'   prop_range <- c(0.1, 0.5, 1)
 #'   seq_depth_range <- c(0.5, 1, 3, 5)
 #'   n_rep <- 10
-#'   results <- powerAnalysisSpatial(shinyDesign, SIGMA = 1, prop_range, seq_depth_range, n_rep, n_cores = 2)
+#'   results <- powerAnalysisSpatial(spaDesign, SIGMA = 1, prop_range, seq_depth_range, n_rep, n_cores = 2)
 #' }
 
-powerAnalysisSpatial <- function(shinyDesign, SIGMA, prop_range, seq_depth_range, n_rep, n_cores) {
+powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, n_rep, n_cores) {
     
     # Input checks
     stopifnot(is.numeric(prop_range), all(prop_range >= 0), all(prop_range <= 1))
@@ -51,7 +51,7 @@ powerAnalysisSpatial <- function(shinyDesign, SIGMA, prop_range, seq_depth_range
 
         message(sprintf("Simulating data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
-        DATA <- simulation_Spatial(shinyDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores = n_cores)
+        DATA <- simulation_Spatial(spaDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores = n_cores)
         
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))

@@ -1,9 +1,9 @@
-#' @title Accessors for \code{shinyDesign} objects
+#' @title Accessors for \code{spaDesign} objects
 #' 
-#' @description Access slots of a \code{shinyDesign} object, including reference
+#' @description Access slots of a \code{spaDesign} object, including reference
 #' and simulated data, model parameters, and results.
 #' 
-#' @param x A \code{shinyDesign} object.
+#' @param x A \code{spaDesign} object.
 #' 
 #' @return Slot contents:
 #' \itemize{
@@ -20,7 +20,7 @@
 #' 
 #' @examples
 #' \dontrun{
-#' obj <- new("shinyDesign",
+#' obj <- new("spaDesign",
 #'            refCounts = matrix(1:6, nrow = 2),
 #'            refcolData = data.frame(sample = 1:3),
 #'            refrowData = data.frame(gene = c("A", "B")),
@@ -33,57 +33,57 @@
 #' paramsFG(obj)
 #' }
 #' 
-#' @name shinyDesign-accessors
+#' @name spaDesign-accessors
 NULL
 
 
 # Reference data
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("refCounts", "shinyDesign", function(x) x@refCounts)
+setMethod("refCounts", "spaDesign", function(x) x@refCounts)
 
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("refcolData", "shinyDesign", function(x) x@refcolData)
+setMethod("refcolData", "spaDesign", function(x) x@refcolData)
 
 
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("refrowData", "shinyDesign", function(x) x@refrowData)
+setMethod("refrowData", "spaDesign", function(x) x@refrowData)
 
 # Simulated data
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("simCounts", "shinyDesign", function(x) x@simCounts)
+setMethod("simCounts", "spaDesign", function(x) x@simCounts)
 
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("simcolData", "shinyDesign", function(x) x@simcolData)
+setMethod("simcolData", "spaDesign", function(x) x@simcolData)
 
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("simrowData", "shinyDesign", function(x) x@simrowData)
+setMethod("simrowData", "spaDesign", function(x) x@simrowData)
 
 # Parameters
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("paramsFG", "shinyDesign", function(x) x@paramsFG)
+setMethod("paramsFG", "spaDesign", function(x) x@paramsFG)
 
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("paramsGP", "shinyDesign", function(x) x@paramsGP)
+setMethod("paramsGP", "spaDesign", function(x) x@paramsGP)
 
 # Top genes
-#' @rdname shinyDesign-accessors
+#' @rdname spaDesign-accessors
 #' @export
-setMethod("topGenes", "shinyDesign", function(x) x@topGenes)
+setMethod("topGenes", "spaDesign", function(x) x@topGenes)
 
-#' Show method for shinyDesign objects
-#' @param object A \code{shinyDesign} object
+#' Show method for spaDesign objects
+#' @param object A \code{spaDesign} object
 #' @export
 setMethod(
   f = 'show',
-  signature = 'shinyDesign',
+  signature = 'spaDesign',
   definition = function(object) {
     cat("class:", class(object), "\n")
     

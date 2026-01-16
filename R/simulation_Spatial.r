@@ -4,15 +4,15 @@
 #' expression patterns with perturbed spot locations. It allows scaling of sequencing depth and the 
 #' \code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
 #' 
-#' @param shinyDesign A \code{shinyDesign} object containing spatial coordinates, gene expression,
+#' @param spaDesign A \code{spaDesign} object containing spatial coordinates, gene expression,
 #'   and fitted GP/FG parameters.
 #' @param selected_M_list Optional list of selected FG model indices for each domain. If \code{NULL},
-#'   the function will attempt to use \code{shinyDesign@selected_M_list_BIC}.
+#'   the function will attempt to use \code{spaDesign@selected_M_list_BIC}.
 #' @param seq_depth_factor Numeric scaling factor for sequencing depth
 #' @param SIGMA Numeric scaling factor for the \code{sigma} parameter from the FG model.
 #' @param SEED Integer random seed for reproducibility.
 #' @param prop Numeric, proportion of genes to keep undisturbed (between 0 and 1).
-#' @return A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts}, and
+#' @return A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, and
 #'   updated spot metadata in \code{simcolData}.
 #' @import pdist
 #' @import clue
@@ -36,29 +36,29 @@
 #'                                    prop = 0.7)
 #' }
 
-simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores){
+simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores){
   
   if (is.null(selected_M_list)) {
-    if (!is.null(shinyDesign@selected_M_list_AIC)) {
-      selected_M_list <- shinyDesign@selected_M_list_BIC
+    if (!is.null(spaDesign@selected_M_list_AIC)) {
+      selected_M_list <- spaDesign@selected_M_list_BIC
     } else {
-      stop("No selected_M_list provided and shinyDesign does not contain selected_M_list_AIC.")
+      stop("No selected_M_list provided and spaDesign does not contain selected_M_list_AIC.")
     }
   }
   
   # Validate inputs
-  if (length(selected_M_list) != length(shinyDesign@paramsFG)) {
-    stop("Length of selected_M_list must match number of domains in shinyDesign")
+  if (length(selected_M_list) != length(spaDesign@paramsFG)) {
+    stop("Length of selected_M_list must match number of domains in spaDesign")
   }
   
   if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
     stop("seq_depth_factor must be a positive numeric value.")
   }
   
-  count_matrix <- refCounts(shinyDesign)    
-  loc_file <- refcolData(shinyDesign)[, c('x','y','domain')]
-  par_GP <- paramsGP(shinyDesign)
-  par_FG <- paramsFG(shinyDesign)
+  count_matrix <- refCounts(spaDesign)    
+  loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
+  par_GP <- paramsGP(spaDesign)
+  par_FG <- paramsFG(spaDesign)
   
   # Check if par_GP and par_FG exist and are not NULL
   if (is.null(par_GP) || is.null(par_FG)) {
@@ -72,11 +72,11 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
   
   ## extract FG models
   FG_selected_model <- list()
-  for (d in 1:length(shinyDesign@paramsFG)){
-    domain <- names(shinyDesign@paramsFG)[d]
+  for (d in 1:length(spaDesign@paramsFG)){
+    domain <- names(spaDesign@paramsFG)[d]
     M <- selected_M_list[d]
     model_name <- paste0("M_", M)
-    domain_models <- shinyDesign@paramsFG[[domain]]$all_models
+    domain_models <- spaDesign@paramsFG[[domain]]$all_models
     if (!model_name %in% names(domain_models)) {
       available_M <- gsub("M_", "", names(domain_models))
       stop(paste0("M =", M, " not found for domain ", domain, 
@@ -85,7 +85,7 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
     
     FG_selected_model[[d]] <- domain_models[[model_name]]
   }
-  names(FG_selected_model) <- names(shinyDesign@paramsFG)
+  names(FG_selected_model) <- names(spaDesign@paramsFG)
   
   
   seqDepth_factor <- seq_depth_factor
@@ -154,9 +154,9 @@ simulation_Spatial <- function(shinyDesign, selected_M_list = NULL, seq_depth_fa
   COUNT.SIM <- Reduce('+', COUNT.SIM)/REPEAT
   }
   message("Simulation complete.\n")
-  shinyDesign@simCounts <- COUNT.SIM
-  shinyDesign@simcolData <- refcolData(shinyDesign)
-  return(shinyDesign)
+  spaDesign@simCounts <- COUNT.SIM
+  spaDesign@simcolData <- refcolData(spaDesign)
+  return(spaDesign)
 }
 
 
