@@ -4,28 +4,28 @@
 \alias{evaluatePowerSeurat}
 \title{Evaluate clustering performance on simulated spatial transcriptomics data using Seurat}
 \usage{
-evaluatePowerSeurat(shinyDesign)
+evaluatePowerSeurat(spaDesign)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing:
+\item{spaDesign}{A \code{spaDesign} object containing:
 \itemize{
 \item \code{simCounts}: simulated count matrix (genes x spots).
 \item \code{simcolData}: spot metadata with domain assignments.
 }}
 }
 \value{
-The updated \code{shinyDesign} object with:
+The updated \code{spaDesign} object with:
 \itemize{
 \item \code{simcolData$label_pred}: predicted cluster labels.
 \item \code{NMI}: numeric NMI between true and predicted labels.
 }
 }
 \description{
-This function applies a Seurat-based clustering pipeline to a \code{shinyDesign} object
+This function applies a Seurat-based clustering pipeline to a \code{spaDesign} object
 with simulated counts. Clustering performance is evaluated against the true domains
 using Normalized Mutual Information (NMI).
 }
 \examples{
-# Assuming shinyDesign is a valid shinyDesign object
-# result <- evaluatePower(shinyDesign)
+# Assuming spaDesign is a valid spaDesign object
+# result <- evaluatePower(spaDesign)
 }

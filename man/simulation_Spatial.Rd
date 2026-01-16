@@ -5,7 +5,7 @@
 \title{Simulate data with modified sequencing depth and dispersion}
 \usage{
 simulation_Spatial(
-  shinyDesign,
+  spaDesign,
   selected_M_list = NULL,
   seq_depth_factor,
   SIGMA,
@@ -15,11 +15,11 @@ simulation_Spatial(
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates, gene expression,
+\item{spaDesign}{A \code{spaDesign} object containing spatial coordinates, gene expression,
 and fitted GP/FG parameters.}
 
 \item{selected_M_list}{Optional list of selected FG model indices for each domain. If \code{NULL},
-the function will attempt to use \code{shinyDesign@selected_M_list_BIC}.}
+the function will attempt to use \code{spaDesign@selected_M_list_BIC}.}
 
 \item{seq_depth_factor}{Numeric scaling factor for sequencing depth}
 
@@ -30,7 +30,7 @@ the function will attempt to use \code{shinyDesign@selected_M_list_BIC}.}
 \item{prop}{Numeric, proportion of genes to keep undisturbed (between 0 and 1).}
 }
 \value{
-A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts}, and
+A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, and
 updated spot metadata in \code{simcolData}.
 }
 \description{

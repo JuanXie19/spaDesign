@@ -1,4 +1,4 @@
-Package: shinyDesign2
+Package: spaDesign
 Type: Package
 Title: Tools for sequencing-based spatial transcriptomics experimental design
 Version: 0.0.0.9000

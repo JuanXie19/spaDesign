@@ -5,7 +5,7 @@
 #' @param spaDesign A \code{spaDesign} object containing spatial coordinates in \code{refcolData}
 #' and expression values in \code{refCounts}.
 #' @param n_neighbors Number of nearest neighbors for NNGP fitting (default = 10)
-#' @param order Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD')
+#' @param order Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD'). If non-Visium data, switch to 'Sum_coords'
 #' @param X Optional design matrix of covariates
 #' @param verbose Logical, whether to display progress messages (default = FALSE)
 #' 
@@ -18,18 +18,50 @@
 #' @import Matrix
 #' @export
 #' @examples
-#' \donotrun{
-#' toyDATA <- createspaDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-#' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD', X = NULL, verbose = FALSE)
+#' \dontrun{
+#' toyDATA <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
+#' toyDATA <- estimation_NNGP(toyDATA, 
+#'                             n_neighbors = 10, 
+#'                             order = 'AMMD', 
+#'                             X = NULL, 
+#'                             verbose = FALSE)
 #'}
 
-estimation_NNGP <- function(spaDesign, n_neighbors = 10, order = 'AMMD',X = NULL, verbose = FALSE){
-
+estimation_NNGP <- function(spaDesign, 
+                            n_neighbors = 10, 
+                            order = 'AMMD',
+                            X = NULL,
+                            verbose = FALSE){
+    # Input validation
+    if (!inherits(spaDesign, "spaDesign")) {
+      stop("spaDesign must be a spaDesign object")
+    }
+  
+    if (!is.numeric(n_neighbors) || n_neighbors <= 0 || n_neighbors != round(n_neighbors)) {
+      stop("n_neighbors must be a positive integer")
+    }
+  
+    if (!order %in% c('AMMD', 'Sum_coords')) {
+      stop("order must be either 'AMMD' or 'Sum_coords'")
+   }
+  
+    if (!is.logical(verbose)) {
+      stop("verbose must be logical (TRUE or FALSE)")
+    }
+    
+    # extract data
     loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
     count_matrix <- refCounts(spaDesign)
     
-    ## scale the coordinates to [0,1] range
-    coords_norm <- igraph::norm_coords(as.matrix(loc_file[,c('x','y')]),xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+    # Check for required columns
+    if (!all(c('x', 'y', 'domain') %in% colnames(spaDesign@refcolData))) {
+      stop("refcolData must contain columns: x, y, domain")
+    }
+    
+    # scale the coordinates to [0,1] range
+    coords_norm <- igraph::norm_coords(
+      as.matrix(loc_file[,c('x','y')]),
+      xmin = 0, xmax = 1, ymin = 0, ymax = 1)
     coords_norm <- as.data.frame(coords_norm)
     coords_norm$domain <- loc_file$domain
 
@@ -37,7 +69,11 @@ estimation_NNGP <- function(spaDesign, n_neighbors = 10, order = 'AMMD',X = NULL
     topGenes <- topGenes(spaDesign)
 
     if (is.null(topGenes) || length(topGenes) == 0) {
-        stop("topGenes is NULL or empty. Check the spaDesign object.")
+        stop("topGenes is NULL or empty. Please run featureSelection first.")
+    }
+    
+    if (verbose) {
+      message("Fitting NNGP models for ", length(topGenes), " domain(s)")
     }
     
     RST <- lapply(seq_along(topGenes), function(i){

@@ -28,7 +28,7 @@
 #'   \item{\code{simcolData}}{A \code{data.frame} containing column-level metadata for simulated counts.}
 #'   \item{\code{simrowData}}{A \code{data.frame} containing row-level metadata for simulated counts.}
 #'   \item{\code{paramsGP}}{An optional list of parameters for Gaussian processes, or \code{NULL}.}
-#'   \item{\code{paramsFG}}{An optional list of parameters for Fisher Gaussian kernal mixture model, or \code{NULL}.}
+#'   \item{\code{paramsFG}}{An optional list of parameters for Fisher Gaussian kernel mixture model, or \code{NULL}.}
 #'	 \item{\code{selected_M_list_AIC}}{A slot for selected best number of cluster for FG mixture model based on AIC criteria.}
 #'	 \item{\code{selected_M_list_BIC}}{A slot for selected best number of cluster for FG mixture model based on BIC criteria.}
 #'   \item{\code{topGenes}}{An optional list of top genes, or \code{NULL}.}
@@ -58,9 +58,9 @@ setClass('spaDesign',
         simrowData = 'data.frame',
         paramsGP = 'OptionalList',
         paramsFG = 'OptionalList',
-		selected_M_list_AIC = 'ANY',
-		selected_M_list_BIC = 'ANY',
-		topGenes = 'OptionalList',
+		    selected_M_list_AIC = 'ANY',
+		    selected_M_list_BIC = 'ANY',
+		    topGenes = 'OptionalList',
         NMI = 'ANY'
     ))
 

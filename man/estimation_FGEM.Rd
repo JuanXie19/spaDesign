@@ -5,7 +5,7 @@
 \title{Estimate the parameters for simplified Fisher-Gaussian kernel mixture model via EM algorithm}
 \usage{
 estimation_FGEM(
-  shinyDesign,
+  spaDesign,
   iter_max = 1000,
   M_candidates = 2:5,
   tol = 0.1,
@@ -14,36 +14,45 @@ estimation_FGEM(
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial spatial metadata in \code{refcolData}
+\item{spaDesign}{A \code{spaDesign} object containing spatial spatial metadata in \code{refcolData}
 with columns \code{"x"}, \code{"y"}, and \code{"domain"} (one row per spot).}
 
 \item{iter_max}{Maximum number of EM iterations (default = 1000)}
+
+\item{M_candidates}{Integer vector of candidate mixture sizes to try (default = 2:5)}
 
 \item{tol}{Positive convergence tolerance for EM algorithm (default = 1e-1)}
 
 \item{n_cores}{Number of CPU cores for parallization (default = 1). Uses \code{pbmclapply};
 on windows this is treated as sequential.}
 
-\item{verbose}{Logical; if \code{TRUE}, print progress messages (default = TRUE).
-
-return Updated \code{shinyDesign} object with Fisher-Gaussian parameter estimates and M list:
+\item{verbose}{Logical; if \code{TRUE}, print progress messages (default = TRUE).}
+}
+\value{
+Updated \code{spaDesign} object with Fisher-Gaussian parameter estimates and M list:
 \itemize{
 \item \code{paramsFG}: list of per-domain fit results (from \code{select_best_M}).
 \item \code{selected_M_list_BIC}: named integer vector of best M by BIC (NA if failed).
 \item \code{selected_M_list_AIC}: named integer vector of best M by AIC (NA if failed).
-}}
-
-\item{M_candiate}{Integer vector of candidate mixture sizes to try (default = 2:5)}
+}
 }
 \description{
 Fits a Fisher-Gaussian kernel mixture model to the spatial coordinates
-(per domain) using the EM algorithm, and stores results in the \code{shinyDesign} object.
+(per domain) using the EM algorithm, and stores results in the \code{spaDesign} object.
 }
 \details{
 Coordinates are rescaled to \(\link{0,1}\times\link{0,1}\) with \code{igraph::norm_coords} before fitting.
 For any domain with fewer spots than some candidate M, those candidates are dropped for that domain.
 }
 \examples{
-# Assuming shinyDesign is a valid shinyDesign object
-# result <- estimation_FGEM(shinyDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE)
+\dontrun{
+# Assuming spaDesign is a valid spaDesign object
+# result <- estimation_FGEM(spaDesign, 
+                            iter_max = 1000, 
+                            M_candidates = 2:5, 
+                            tol = 1e-1, 
+                            n_cores = 2, 
+                            verbose = FALSE)
+}
+
 }

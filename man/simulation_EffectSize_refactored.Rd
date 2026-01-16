@@ -5,14 +5,14 @@
 \title{(Refactored)Simulate spatial transcriptomics data with modified effect size and sequencing depth}
 \usage{
 simulation_EffectSize_refactored(
-  shinyDesign,
+  spaDesign,
   seq_depth_factor,
   effect_size_factor,
   SEED
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates, gene expression,
+\item{spaDesign}{A \code{spaDesign} object containing spatial coordinates, gene expression,
 and estimated NNGP parameters.}
 
 \item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0).}
@@ -22,7 +22,7 @@ and estimated NNGP parameters.}
 \item{SEED}{Integer random seed for reproducibility.}
 }
 \value{
-A \code{shinyDesign} object with simulated count matrix stored in \code{simCounts},
+A \code{spaDesign} object with simulated count matrix stored in \code{simCounts},
 and updated \code{simcolData} with spot metadata.
 }
 \description{

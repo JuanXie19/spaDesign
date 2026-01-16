@@ -60,6 +60,8 @@ createDesignObject <- function(count_matrix, loc) {
         simrowData = data.frame(),  # Initialize with empty data.frame
         paramsGP = NULL,
         paramsFG = NULL,
+        selected_M_list_AIC = NULL,
+        selected_M_list_BIC = NULL,
 		    topGenes = NULL,
         NMI = NULL
     )

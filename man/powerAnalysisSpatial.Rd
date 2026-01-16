@@ -5,7 +5,7 @@
 \title{Power analysis for spatial data}
 \usage{
 powerAnalysisSpatial(
-  shinyDesign,
+  spaDesign,
   SIGMA,
   prop_range,
   seq_depth_range,
@@ -14,7 +14,7 @@ powerAnalysisSpatial(
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object with estimated model parameters.}
+\item{spaDesign}{A \code{spaDesign} object with estimated model parameters.}
 
 \item{SIGMA}{A numeric value indicating the Gaussian noise level.}
 
@@ -45,6 +45,6 @@ different proportions of undisturbed patterns and sequencing depths.
   prop_range <- c(0.1, 0.5, 1)
   seq_depth_range <- c(0.5, 1, 3, 5)
   n_rep <- 10
-  results <- powerAnalysisSpatial(shinyDesign, SIGMA = 1, prop_range, seq_depth_range, n_rep, n_cores = 2)
+  results <- powerAnalysisSpatial(spaDesign, SIGMA = 1, prop_range, seq_depth_range, n_rep, n_cores = 2)
 }
 }

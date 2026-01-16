@@ -5,10 +5,10 @@
 \title{Select Domain-Informative Genes for Each Spatial Domain
 This function selects genes with large absolute fold change and high within-domain expression
 for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
-\code{shinyDesign} object.}
+\code{spaDesign} object.}
 \usage{
 featureSelection(
-  shinyDesign,
+  spaDesign,
   logfc_cutoff,
   mean_in_cutoff,
   max_num_gene,
@@ -16,7 +16,7 @@ featureSelection(
 )
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object.}
+\item{spaDesign}{A \code{spaDesign} object.}
 
 \item{logfc_cutoff}{Numeric value specifying the threshold for log fold change,
 used to select genes with significant differential expression within vs outside domain.}
@@ -26,14 +26,14 @@ used to select genes with significant differential expression within vs outside 
 \item{max_num_gene}{Integer specifying the maximum number of genes that can be selected per spatial domain.}
 }
 \value{
-Returns the input \code{shinyDesign} object with the \code{topGenes} slot updated
+Returns the input \code{spaDesign} object with the \code{topGenes} slot updated
 with the selected genes for each domain.
 }
 \description{
 Select Domain-Informative Genes for Each Spatial Domain
 This function selects genes with large absolute fold change and high within-domain expression
 for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
-\code{shinyDesign} object.
+\code{spaDesign} object.
 }
 \details{
 Genes are selected by filtering based on \code{logfc_cutoff} and \code{mean_in_cutoff}.
@@ -42,7 +42,7 @@ The top genes are then ordered by descending absolute logFC and truncated
 to \code{max_num_gene}.
 }
 \examples{
-# Assuming you have a shinyDesign object named `my_spadesign`
+# Assuming you have a spaDesign object named `my_spadesign`
 my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = 0.7, mean_in_cutoff = 2, max_num_gene = 10)
 # Access the selected genes
 top_genes <- my_spadesign@topGenes

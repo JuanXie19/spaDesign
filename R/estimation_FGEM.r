@@ -6,13 +6,13 @@
 #' @param spaDesign A \code{spaDesign} object containing spatial spatial metadata in \code{refcolData}
 #'   with columns \code{"x"}, \code{"y"}, and \code{"domain"} (one row per spot).
 #' @param iter_max Maximum number of EM iterations (default = 1000)
-#' @param M_candiate Integer vector of candidate mixture sizes to try (default = 2:5)
+#' @param M_candidates Integer vector of candidate mixture sizes to try (default = 2:5)
 #' @param tol Positive convergence tolerance for EM algorithm (default = 1e-1)
 #' @param n_cores Number of CPU cores for parallization (default = 1). Uses \code{pbmclapply}; 
 #' on windows this is treated as sequential.
 #' @param verbose Logical; if \code{TRUE}, print progress messages (default = TRUE).
 #' 
-#' return Updated \code{spaDesign} object with Fisher-Gaussian parameter estimates and M list:
+#' @return Updated \code{spaDesign} object with Fisher-Gaussian parameter estimates and M list:
 #'   \itemize{
 #'     \item \code{paramsFG}: list of per-domain fit results (from \code{select_best_M}).
 #'     \item \code{selected_M_list_BIC}: named integer vector of best M by BIC (NA if failed).
@@ -33,12 +33,23 @@
 #' @import truncnorm
 #' @export
 #' @examples
+#' \dontrun{
 #' # Assuming spaDesign is a valid spaDesign object
-#' # result <- estimation_FGEM(spaDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 2, verbose = FALSE)
+#' # result <- estimation_FGEM(spaDesign, 
+#'                             iter_max = 1000, 
+#'                             M_candidates = 2:5, 
+#'                             tol = 1e-1, 
+#'                             n_cores = 2, 
+#'                             verbose = FALSE)
+#' }
+#' 
+estimation_FGEM <- function(spaDesign, 
+                            iter_max = 1000, 
+                            M_candidates = 2:5, 
+                            tol = 1e-1, 
+                            n_cores = 4, 
+                            verbose = FALSE){
 
-estimation_FGEM <- function(spaDesign, iter_max = 1000, M_candidates = 2:5, tol = 1e-1, n_cores = 4, verbose = FALSE){
-	message("DEBUG: Entering estimation_FGEM with iter_max=", iter_max)
-	
   # input validation
 	if (!is.numeric(iter_max) || iter_max <= 0 || iter_max != round(iter_max)) {
 		stop("iter_max must be a positive integer")
@@ -63,17 +74,43 @@ estimation_FGEM <- function(spaDesign, iter_max = 1000, M_candidates = 2:5, tol 
   coords_norm$domain <- loc_file$domain
 
   DOMAIN <- sort(unique(loc_file$domain))
+  
+  if(verbose){
+    message('Fitting models for ', length(DOMAIN), 'domain(s)')
+  }
+  
+  # fit models for each domain
 	RST <- pbmcapply::pbmclapply(seq_along(DOMAIN), function(d){
 		          coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
-		          FIT <- select_best_M(x = as.matrix(coords_sub[, c('x', 'y')]), M_candidates = M_candidates, iter_max = iter_max, tol = tol)
+		          
+		          FIT <- tryCatch({
+		            select_best_M(
+		              x = as.matrix(coords_sub[, c('x', 'y')]), 
+		              M_candidates = M_candidates, 
+		              iter_max = iter_max, 
+		              tol = tol
+		              )
+		            }, error = function(e){
+		               warning('Failed to fit model for domain ', DOMAIN[d], ':', e$messsage)
+		              return(NULL)
+		              })
 		          return(FIT)	
 	}, mc.cores = n_cores)
-	   
+	
+	if (verbose){
   message('Completed fitting Fisher-Gaussian mixture models for all domains')
+	}
+	
   names(RST) <- DOMAIN
   spaDesign@paramsFG <- RST
-	spaDesign@selected_M_list_BIC <- sapply(RST, function(fit) fit$best_M_BIC)
-	spaDesign@selected_M_list_AIC <- sapply(RST, function(fit) fit$best_M_AIC)
+	spaDesign@selected_M_list_BIC <- sapply(RST, function(fit) {
+	  if (is.null(fit)) return(NA_integer_)
+	  fit$best_M_BIC
+	  })
+	spaDesign@selected_M_list_AIC <- sapply(RST, function(fit) {
+	  if (is.null(fit)) return(NA_integer_)
+	  fit$best_M_AIC
+	  })
   return(spaDesign)
 }
 

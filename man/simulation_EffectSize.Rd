@@ -4,10 +4,10 @@
 \alias{simulation_EffectSize}
 \title{Simulate spatial transcriptomics data with modified effect size and sequencing depth}
 \usage{
-simulation_EffectSize(shinyDesign, seq_depth_factor, effect_size_factor, SEED)
+simulation_EffectSize(spaDesign, seq_depth_factor, effect_size_factor, SEED)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object containing spatial coordinates,
+\item{spaDesign}{A \code{spaDesign} object containing spatial coordinates,
 gene expression and estimated parameters}
 
 \item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0 ).}

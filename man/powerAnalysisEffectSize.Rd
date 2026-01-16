@@ -4,10 +4,10 @@
 \alias{powerAnalysisEffectSize}
 \title{Power analysis via effect size and sequencing depth simulations}
 \usage{
-powerAnalysisEffectSize(shinyDesign, es_range, seq_depth_range, n_rep, n_cores)
+powerAnalysisEffectSize(spaDesign, es_range, seq_depth_range, n_rep, n_cores)
 }
 \arguments{
-\item{shinyDesign}{A \code{shinyDesign} object with estimated model parameters.}
+\item{spaDesign}{A \code{spaDesign} object with estimated model parameters.}
 
 \item{es_range}{A numeric vector of effect size scaling factors}
 
