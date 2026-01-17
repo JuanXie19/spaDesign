@@ -2,33 +2,60 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{simulation_EffectSize}
 \alias{simulation_EffectSize}
-\title{Simulate spatial transcriptomics data with modified effect size and sequencing depth}
+\title{Simulate spatial counts with scaled effect size and sequencing depth}
 \usage{
 simulation_EffectSize(spaDesign, seq_depth_factor, effect_size_factor, SEED)
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object containing spatial coordinates,
-gene expression and estimated parameters}
+\item{spaDesign}{A \code{spaDesign} object containing:
+\itemize{
+\item Reference count matrix (accessible via \code{refCounts})
+\item Spatial coordinates and domain labels (accessible via \code{refcolData})
+\item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
+}}
 
-\item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0 ).}
+\item{seq_depth_factor}{Numeric scalar > 0. Scaling factor for sequencing depth.
+Values greater than 1 increase the expected counts; values less than 1 decrease counts.}
 
-\item{effect_size_factor}{Numeric scaling factor for effect size (must be > 0).}
+\item{effect_size_factor}{Numeric scalar > 0. Scaling factor for within-domain effect size.
+Values greater than 1 strengthen domain enrichment; values less than 1 weaken it.}
 
 \item{SEED}{Integer random seed for reproducibility.}
 }
 \value{
-A \code{spatialdesign} object with simulated count matrix in the \code{simCounts} slot,
-and updated \code{simcolData} with spot metadata.
+A \code{spaDesign} object with:
+\itemize{
+\item \code{simCounts}: simulated gene-by-spot count matrix
+\item \code{simcolData}: spot metadata copied from \code{refcolData(spaDesign)}
+}
 }
 \description{
-This function generates simulated spatial gene expression counts based on a fitted NNGP model.
-It allows scaling of sequencing depth and effect size for domain-informative genes.
+Simulates spatial gene expression counts using fitted NNGP models from a \code{spaDesign} object.
+For each spatial domain, the function generates Poisson counts for domain-informative genes by:
+(i) predicting within-domain mean expression from the fitted NNGP model, and
+(ii) estimating outside-domain baseline expression from observed counts.
+}
+\details{
+Two global scaling factors are supported:
+\itemize{
+\item \code{seq_depth_factor}: controls overall sequencing depth (global count scaling)
+\item \code{effect_size_factor}: controls within-domain enrichment strength
+}
+
+Simulated counts are stored in the \code{simCounts} slot and spot metadata is copied
+into \code{simcolData}.
 }
 \examples{
 \dontrun{
-simulated_data <- simulation_EffectSize(spadesign_obj, 
-                                       seq_depth_factor = 1.5,
-                                       effect_size_factor = 2.0,
-                                       SEED = 123)
+# Simulate counts with increased depth and stronger domain effect
+sim_obj <- simulation_EffectSize(
+  spaDesign = my_spadesign,
+  seq_depth_factor = 1.5,
+  effect_size_factor = 2.0,
+  SEED = 123
+)
+
+sim_counts <- sim_obj@simCounts
+dim(sim_counts)
 }
 }

@@ -7,33 +7,43 @@
 powerAnalysisEffectSize(spaDesign, es_range, seq_depth_range, n_rep, n_cores)
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object with estimated model parameters.}
+\item{spaDesign}{A \code{spaDesign} object with estimated GP and FG model parameters.}
 
-\item{es_range}{A numeric vector of effect size scaling factors}
+\item{es_range}{Numeric vector of effect size scaling factors.}
 
-\item{seq_depth_range}{A numeric vector of sequencing depth scaling factors.}
+\item{seq_depth_range}{Numeric vector of sequencing depth scaling factors.}
 
-\item{n_rep}{Integer, number of replications for each scenario.}
+\item{n_rep}{Integer. Number of replications per scenario.}
 
-\item{n_cores}{Integer, number of CPU cores for parallelization (default: 2)}
+\item{n_cores}{Integer. Number of CPU cores for parallelization (default: 2).}
 }
 \value{
-A data frame with columns:
-\itemize{
-\item \code{seq_depth}: Sequencing depth scaling factor
-\item \code{effect_size}: Effect size scaling factor
-\item \code{total_counts}: Total counts in simulated dataset
-\item \code{NMI}: Normalized Mutual Information between predicted and true labels
+Data frame with columns:
+\describe{
+\item{seq_depth}{Sequencing depth scaling factor}
+\item{effect_size}{Effect size scaling factor}
+\item{total_counts}{Total counts in simulated dataset}
+\item{NMI}{Normalized Mutual Information between predicted and true labels}
 }
 }
 \description{
-This function performs power analysis by simulating data under varying
-effect sizes and sequencing depths, followed by clustering evaluation.
+Performs power analysis by simulating data under varying effect sizes and sequencing depths,
+then evaluating clustering performance.
+}
+\details{
+For each combination of effect size and sequencing depth, \code{n_rep} datasets are simulated
+and evaluated. Clustering performance is measured using Normalized Mutual Information (NMI)
+between predicted and true domain labels.
 }
 \examples{
-# spadesign <- ...
-# es_range <- c(1, 2, 3)
-# seq_depth_range <- c(0.5, 1, 3, 5)
-# n_rep <- 10
-# results <- powerAnalysisEffectSize(spadesign, es_range, seq_depth_range, n_rep, n_cores)
+\dontrun{
+results <- powerAnalysisEffectSize(
+  spaDesign = my_spadesign,
+  es_range = c(1, 2, 3),
+  seq_depth_range = c(0.5, 1, 3, 5),
+  n_rep = 5,
+  n_cores = 4
+)
+head(results)
+}
 }

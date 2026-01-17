@@ -2,10 +2,7 @@
 % Please edit documentation in R/featureSelection.r
 \name{featureSelection}
 \alias{featureSelection}
-\title{Select Domain-Informative Genes for Each Spatial Domain
-This function selects genes with large absolute fold change and high within-domain expression
-for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
-\code{spaDesign} object.}
+\title{Select Domain-Informative Genes for Each Spatial Domain}
 \usage{
 featureSelection(
   spaDesign,
@@ -16,34 +13,44 @@ featureSelection(
 )
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object.}
+\item{spaDesign}{A \code{spaDesign} object containing:
+\itemize{
+\item Count matrix (accessible via \code{refCounts})
+\item Spatial coordinates and domain assignments (accessible via \code{refcolData})
+}}
 
-\item{logfc_cutoff}{Numeric value specifying the threshold for log fold change,
-used to select genes with significant differential expression within vs outside domain.}
+\item{logfc_cutoff}{Numeric scalar > 0. Minimum absolute log fold change threshold.
+Genes must have |logFC| >= this value to be considered domain-informative.}
 
-\item{mean_in_cutoff}{Numeric value specifying the minimum mean log-transformed expression within the domain.}
+\item{mean_in_cutoff}{Numeric scalar > 0. Minimum mean log-transformed expression
+required within the domain. Filters out lowly expressed genes.}
 
-\item{max_num_gene}{Integer specifying the maximum number of genes that can be selected per spatial domain.}
-}
-\value{
-Returns the input \code{spaDesign} object with the \code{topGenes} slot updated
-with the selected genes for each domain.
+\item{max_num_gene}{Integer. Maximum number of genes to select per spatial domain.
+If more genes pass the filters, the top \code{max_num_gene} genes with highest
+absolute logFC are retained.}
+
+\item{n_cores}{Integer. Number of CPU cores to use for parallel processing across domains.}
 }
 \description{
-Select Domain-Informative Genes for Each Spatial Domain
-This function selects genes with large absolute fold change and high within-domain expression
-for each spatial domain. The selected genes are stored in the \code{topGenes} slot of the
-\code{spaDesign} object.
-}
-\details{
-Genes are selected by filtering based on \code{logfc_cutoff} and \code{mean_in_cutoff}.
-If too few genes meet both criteria, the union of individual criteria is used.
-The top genes are then ordered by descending absolute logFC and truncated
-to \code{max_num_gene}.
+Identifies and selects genes that are highly expressed and differential expressed
+within each spatial domain compared to outside the domain. Selected genes are stored
+in the \code{topGenes} slot of the \code{spaDesign} object for downstream analysis.
 }
 \examples{
-# Assuming you have a spaDesign object named `my_spadesign`
-my_spadesign <- featureSelection(my_spadesign, logfc_cutoff = 0.7, mean_in_cutoff = 2, max_num_gene = 10)
-# Access the selected genes
+\dontrun{
+# Select domain-informative genes
+my_spadesign <- featureSelection(
+  spaDesign = my_spadesign,
+  logfc_cutoff = 0.7,      # Require at least 0.7 log FC
+  mean_in_cutoff = 2,       # Require mean log-expression >= 2 in domain
+  max_num_gene = 50,        # Select maximum 50 genes per domain
+  n_cores = 4
+)
+
+# Access the selected genes for each domain
 top_genes <- my_spadesign@topGenes
+
+# View genes for first domain
+head(top_genes[[1]])
+}
 }

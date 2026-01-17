@@ -18,7 +18,8 @@ and expression values in \code{refCounts}.}
 
 \item{n_neighbors}{Number of nearest neighbors for NNGP fitting (default = 10)}
 
-\item{order}{Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD'). If non-Visium data, switch to 'Sum_coords'}
+\item{order}{Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD').
+use 'Sum_coords' for non-visium data}
 
 \item{X}{Optional design matrix of covariates}
 
@@ -27,17 +28,24 @@ and expression values in \code{refCounts}.}
 \value{
 Updated \code{spaDesign} object. The slot \code{paramsGP} is a nested list:
 \code{paramsGP[[domain]][[gene]]} contains the BRISC NNGP fit for that gene.
+
+Updated \code{spaDesign} object with \code{paramsGP} slot populated.
+This is a nested list: \code{paramsGP[[domain]][[gene]]} contains the BRISC fit object.
 }
 \description{
-Fits a Nearest-Neighbor Gaussian Process (NNGP) model for each domain-informative gene.
+Fits a Nearest-Neighbor Gaussian Process (NNGP) model for each domain-informative gene
+using the BRISC package.
+}
+\details{
+Coordinates are normalized to \link{0,1} range before fitting. For each domain, NNGP models
+are fit to log-transformed expression (log(count + 1)) for all selected genes within that domain.
 }
 \examples{
 \dontrun{
-toyDATA <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-toyDATA <- estimation_NNGP(toyDATA, 
-                            n_neighbors = 10, 
-                            order = 'AMMD', 
-                            X = NULL, 
-                            verbose = FALSE)
+toyDATA <- createDesignObject(count_matrix = toyData$toyCount, 
+                               loc = toyData$loc)
+toyDATA <- featureSelection(toyDATA, logfc_cutoff = 0.7, 
+                            mean_in_cutoff = 2, max_num_gene = 50, n_cores = 4)
+toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD')
 }
 }

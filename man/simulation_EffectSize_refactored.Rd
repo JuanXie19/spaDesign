@@ -12,20 +12,45 @@ simulation_EffectSize_refactored(
 )
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object containing spatial coordinates, gene expression,
-and estimated NNGP parameters.}
+\item{spaDesign}{A \code{spaDesign} object containing:
+\itemize{
+\item Reference count matrix (accessible via \code{refCounts})
+\item Spatial coordinates and domain labels (accessible via \code{refcolData})
+\item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
+}}
 
-\item{seq_depth_factor}{Numeric scaling factor for sequencing depth (must be > 0).}
+\item{seq_depth_factor}{Numeric scalar > 0. Scaling factor for sequencing depth.}
 
-\item{effect_size_factor}{Numeric scaling factor for effect size (must be > 0).}
+\item{effect_size_factor}{Numeric scalar > 0. Scaling factor for within-domain effect size.}
 
 \item{SEED}{Integer random seed for reproducibility.}
 }
 \value{
 A \code{spaDesign} object with simulated count matrix stored in \code{simCounts},
 and updated \code{simcolData} with spot metadata.
+
+Simulate Spatial Counts with Scaled Sequencing Depth and Effect Size (Refactored)
+
+A refactored version of \code{\link{simulation_EffectSize}} with reduced memory usage.
+Instead of passing the full reference count matrix into each gene simulation step,
+this function extracts one gene vector at a time and passes only the required data.
+
+The simulation results and output format are consistent with \code{\link{simulation_EffectSize}}.
+
+A \code{spaDesign} object with simulated counts stored in \code{simCounts}
+and spot metadata stored in \code{simcolData}.
 }
 \description{
 This function generates simulated spatial gene expression counts based on a fitted NNGP model.
 It allows scaling of sequencing depth and effect size for domain-informative genes.
+}
+\examples{
+\dontrun{
+sim_obj <- simulation_EffectSize_refactored(
+  spaDesign = my_spadesign,
+  seq_depth_factor = 1.2,
+  effect_size_factor = 1.5,
+  SEED = 1
+)
+}
 }

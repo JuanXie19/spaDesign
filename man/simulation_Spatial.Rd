@@ -15,35 +15,74 @@ simulation_Spatial(
 )
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object containing spatial coordinates, gene expression,
-and fitted GP/FG parameters.}
+\item{spaDesign}{A \code{spaDesign} object containing:
+\itemize{
+\item Spatial coordinates and gene expression data
+\item Fitted GP parameters (from \code{paramsGP} slot)
+\item Fitted FG parameters (from \code{paramsFG} slot)
+\item Domain assignments
+}}
 
-\item{selected_M_list}{Optional list of selected FG model indices for each domain. If \code{NULL},
-the function will attempt to use \code{spaDesign@selected_M_list_BIC}.}
+\item{selected_M_list}{Optional integer vector specifying which FG model (number of clusters M)
+to use for each domain. If \code{NULL}, uses \code{spaDesign@selected_M_list_BIC}.
+Length must match number of domains.}
 
-\item{seq_depth_factor}{Numeric scaling factor for sequencing depth}
+\item{seq_depth_factor}{Numeric scalar > 0. Multiplicative scaling factor for sequencing depth.
+Values > 1 increase depth; < 1 decrease depth.}
 
-\item{SIGMA}{Numeric scaling factor for the \code{sigma} parameter from the FG model.}
+\item{SIGMA}{Numeric scalar > 0. Multiplicative scaling factor for the \code{sigma_sq} parameter
+from the FG model. Larger values increase spatial noise/dispersion.}
 
-\item{SEED}{Integer random seed for reproducibility.}
+\item{SEED}{Integer. Random seed for reproducibility of GP and FG sampling.}
 
-\item{prop}{Numeric, proportion of genes to keep undisturbed (between 0 and 1).}
+\item{prop}{Numeric in \link{0,1}. Proportion of genes to keep with original (undisturbed)
+spatial patterns. The remaining (1-prop) genes will have perturbed locations.}
+
+\item{n_cores}{Integer. Number of CPU cores to use for parallel processing via \code{mclapply}.}
 }
 \value{
-A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, and
-updated spot metadata in \code{simcolData}.
+A \code{spaDesign} object with updated slots:
+\describe{
+\item{simCounts}{Numeric matrix (genes × spots) of simulated expression counts,
+averaged over 1000 replications of random gene selection}
+\item{simcolData}{Data frame of spot metadata, copied from \code{refcolData(spaDesign)}}
+}
 }
 \description{
 This function generates simulated spatial gene expression counts by combining baseline domain-informative
-expression patterns with perturbed spot locations. It allows scaling of sequencing depth and the
-\code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
+expression patterns with perturbed spot locations. i.e.,creates a mixture where a proportion of genes retain their original spatial
+patterns while others are simulated with disturbed locations.
+It allows scaling of sequencing depth and the \code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
+}
+\details{
+The simulation proceeds in three steps:
+\enumerate{
+\item Generate baseline counts for all genes using fitted GP models
+\item Generate perturbed counts using FG-model-based location disturbance
+\item Create final counts by randomly mixing baseline and perturbed patterns,
+with averaging over 1000 random selections
+}
+
+The FG model parameters are modified as follows:
+\itemize{
+\item \code{sigma_sq} is multiplied by \code{SIGMA}
+\item \code{tau} (concentration) is multiplied by 2 to increase spatial perturbation
+}
 }
 \examples{
 \dontrun{
-simulated_data <- simulation_Spatial(spadesign_obj, 
-                                   seq_depth_factor = 1.5,
-                                   SIGMA = 1.2,
-                                   SEED = 123,
-                                   prop = 0.7)
+# Assuming spadesign_obj has fitted GP and FG parameters
+simulated_data <- simulation_Spatial(
+  spaDesign = spadesign_obj,
+  selected_M_list = c(3, 4, 5),  # Use M=3,4,5 for domains 1,2,3
+  seq_depth_factor = 1.5,         # 50\% increase in sequencing depth
+  SIGMA = 1.2,                    # 20\% increase in spatial noise
+  SEED = 123,
+  prop = 0.7,                     # Keep 70\% genes undisturbed
+  n_cores = 4
+)
+
+# Access simulated counts
+sim_counts <- simulated_data@simCounts
 }
 }

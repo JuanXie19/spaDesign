@@ -18,7 +18,7 @@
 #'
 #' @import aricode
 #' @importFrom Seurat CreateSeuratObject NormalizeData FindVariableFeatures ScaleData RunPCA
-#' @importFrom Seurat FindNeighbors FindClusters RenameIdents Idents AggregateEexpression
+#' @importFrom Seurat FindNeighbors FindClusters RenameIdents Idents AggregateExpression
 #' @noRd
 #' 
 #' @examples
