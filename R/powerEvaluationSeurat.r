@@ -1,27 +1,36 @@
 #' Evaluate clustering performance on simulated spatial transcriptomics data using Seurat
 #'
-#' This function applies a Seurat-based clustering pipeline to a \code{spaDesign} object
-#' with simulated counts. Clustering performance is evaluated against the true domains
-#' using Normalized Mutual Information (NMI).
+#' This function applies a Seurat-based clustering pipeline to the simulated
+#'  count matrix stored in a \code{spaDesign} object
+#'  and evaluate clustering accuracy against the ground-truth domain labels. Performance
+#'  is quantified using Normalized Mutual Information (NMI).
 #'
 #' @param spaDesign A \code{spaDesign} object containing:
 #'   \itemize{
 #'     \item \code{simCounts}: simulated count matrix (genes x spots).
-#'     \item \code{simcolData}: spot metadata with domain assignments.
+#'     \item \code{simcolData}: spot-level metadata with true domain labels.
 #'   }
 #' @return The updated \code{spaDesign} object with:
 #'   \itemize{
-#'     \item \code{simcolData$label_pred}: predicted cluster labels.
+#'     \item \code{simcolData$label_pred}: predicted cluster labels for each spot.
 #'     \item \code{NMI}: numeric NMI between true and predicted labels.
 #'   }
 #'
 #' @import aricode
-#' @import Seurat
+#' @importFrom Seurat CreateSeuratObject NormalizeData FindVariableFeatures ScaleData RunPCA
+#' @importFrom Seurat FindNeighbors FindClusters RenameIdents Idents AggregateEexpression
+#' @noRd
+#' 
 #' @examples
-#' # Assuming spaDesign is a valid spaDesign object
-#' # result <- evaluatePower(spaDesign)
-#' @export
+#' \dontrun{
+#' # spaDesign must already contain simulated counts and truth labels:
+#' # simCounts(spaDesign) : genes x spots matrix
+#' # simcolData(spaDesign)$domain : true domain assignment per spot
 #'
+#' out <- evaluatePowerSeurat(spaDesign)
+#' out@NMI
+#' head(out@simcolData$label_pred)
+#' }
 evaluatePowerSeurat <- function(spaDesign) {
    
     # Check if simCounts and simcolData are available
