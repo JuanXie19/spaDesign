@@ -67,7 +67,7 @@ powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, 
                    NMI = NMI)
     }
   
-    results <- mclapply(1:nrow(param_grid), function(i){
+    results <- parallel:mclapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
     }, mc.cores = n_cores)
     results <- do.call(rbind, results)

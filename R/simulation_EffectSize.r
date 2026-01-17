@@ -1,24 +1,51 @@
-#' Simulate spatial transcriptomics data with modified effect size and sequencing depth
+#' Simulate spatial counts with scaled effect size and sequencing depth
 #'
-#' This function generates simulated spatial gene expression counts based on a fitted NNGP model.
-#' It allows scaling of sequencing depth and effect size for domain-informative genes.
+#' Simulates spatial gene expression counts using fitted NNGP models from a \code{spaDesign} object.
+#' For each spatial domain, the function generates Poisson counts for domain-informative genes by:
+#' (i) predicting within-domain mean expression from the fitted NNGP model, and
+#' (ii) estimating outside-domain baseline expression from observed counts.
 #'
-#' @param spaDesign A \code{spaDesign} object containing spatial coordinates, 
-#'    gene expression and estimated parameters
-#' @param seq_depth_factor Numeric scaling factor for sequencing depth (must be > 0 ).
-#' @param effect_size_factor Numeric scaling factor for effect size (must be > 0).
+#' Two global scaling factors are supported:
+#' \itemize{
+#'   \item \code{seq_depth_factor}: controls overall sequencing depth (global count scaling)
+#'   \item \code{effect_size_factor}: controls within-domain enrichment strength
+#' }
+#' 
+#' Simulated counts are stored in the \code{simCounts} slot and spot metadata is copied
+#' into \code{simcolData}.
+#'
+#' @param spaDesign A \code{spaDesign} object containing:
+#'   \itemize{
+#'     \item Reference count matrix (accessible via \code{refCounts})
+#'     \item Spatial coordinates and domain labels (accessible via \code{refcolData})
+#'     \item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
+#'   }
+#' @param seq_depth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
+#'   Values greater than 1 increase the expected counts; values less than 1 decrease counts.
+#' @param effect_size_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
+#'   Values greater than 1 strengthen domain enrichment; values less than 1 weaken it.
 #' @param SEED Integer random seed for reproducibility.
-#' @return A \code{spatialdesign} object with simulated count matrix in the \code{simCounts} slot,
-#'    and updated \code{simcolData} with spot metadata.
+#' @return A \code{spaDesign} object with:
+#'   \itemize{
+#'     \item \code{simCounts}: simulated gene-by-spot count matrix
+#'     \item \code{simcolData}: spot metadata copied from \code{refcolData(spaDesign)}
+#'   }
+#'
 #' @import igraph
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' simulated_data <- simulation_EffectSize(spadesign_obj, 
-#'                                        seq_depth_factor = 1.5,
-#'                                        effect_size_factor = 2.0,
-#'                                        SEED = 123)
+#' # Simulate counts with increased depth and stronger domain effect
+#' sim_obj <- simulation_EffectSize(
+#'   spaDesign = my_spadesign,
+#'   seq_depth_factor = 1.5,
+#'   effect_size_factor = 2.0,
+#'   SEED = 123
+#' )
+#'
+#' sim_counts <- sim_obj@simCounts
+#' dim(sim_counts)
 #' }
 
 simulation_EffectSize <- function(spaDesign, seq_depth_factor, effect_size_factor, SEED){
@@ -120,7 +147,45 @@ simulation_EffectSize <- function(spaDesign, seq_depth_factor, effect_size_facto
 #' @param SEED Integer random seed for reproducibility.
 #' @return A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, 
 #'   and updated \code{simcolData} with spot metadata.
-#'   
+#'
+#'
+#'
+#'
+#'
+
+#' Simulate Spatial Counts with Scaled Sequencing Depth and Effect Size (Refactored)
+#'
+#' A refactored version of \code{\link{simulation_EffectSize}} with reduced memory usage.
+#' Instead of passing the full reference count matrix into each gene simulation step,
+#' this function extracts one gene vector at a time and passes only the required data.
+#'
+#' The simulation results and output format are consistent with \code{\link{simulation_EffectSize}}.
+#'
+#' @param spaDesign A \code{spaDesign} object containing:
+#'   \itemize{
+#'     \item Reference count matrix (accessible via \code{refCounts})
+#'     \item Spatial coordinates and domain labels (accessible via \code{refcolData})
+#'     \item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
+#'   }
+#' @param seq_depth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
+#' @param effect_size_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
+#' @param SEED Integer random seed for reproducibility.
+#'
+#' @return A \code{spaDesign} object with simulated counts stored in \code{simCounts}
+#' and spot metadata stored in \code{simcolData}.
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' sim_obj <- simulation_EffectSize_refactored(
+#'   spaDesign = my_spadesign,
+#'   seq_depth_factor = 1.2,
+#'   effect_size_factor = 1.5,
+#'   SEED = 1
+#' )
+#' }
+
 simulation_EffectSize_refactored <- function(spaDesign, seq_depth_factor, effect_size_factor, SEED){
   
   if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
@@ -216,23 +281,33 @@ simulation_EffectSize_refactored <- function(spaDesign, seq_depth_factor, effect
 }
 
 
-#' Simulate expression count for a single gene
+#' Simulate Expression Counts for a Single Gene
 #'
-#' Generates Poisson-distributed expression counts for a single gene inside and outside a domain
-#' based on estimated NNGP parameters and specified scaling factors.
+#' Simulates Poisson gene expression counts for one gene across all spatial spots.
+#' Counts are generated for spots inside a domain using NNGP-predicted mean expression,
+#' and for spots outside the domain using an empirical baseline mean estimated from the
+#' observed data.
 #'
-#' @param SEED Random seed for reproducibility
-#' @param coords_norm_sub Normalized coordinates for spots within the domain
-#' @param coords_norm_out Normalized coordinates for spots outside the domain
+#' The function supports global scaling of sequencing depth (\code{seqDepth_factor})
+#' and within-domain effect size (\code{ES_factor}).
+#'
+#' @param SEED Integer random seed for reproducibility.
+#' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
+#'   Must contain columns \code{x} and \code{y}.
+#' @param coords_norm_out Data frame of normalized coordinates for spots outside the domain.
+#'   Must contain columns \code{x} and \code{y}.
 #' @param nnGP_fit Fitted NNGP model object for the gene.
-#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
-#' @param ES_factor Numeric scaling factor for effect size.
-#' @param counts Count matrix of gene expression (genes x spots)
-#' @param gene Gene name
-#' @param spot_idx Numeric vector indicating indices of spots within the domain.
-#' @return Numeric vector of simulated counts for all spots, ordered to match the columns of \code{counts}.
-#' @export
-
+#' @param seqDepth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
+#' @param ES_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
+#' @param counts Reference count matrix (genes x spots).
+#' @param gene Character string specifying the gene name.
+#' @param spot_idx Integer vector indicating indices of spots within the domain
+#'   (relative to \code{colnames(counts)}).
+#'
+#' @return Numeric vector of simulated counts for all spots, ordered to match
+#' \code{colnames(counts)}.
+#'
+#' @noRd
 
 simulate_genecount_ES <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, counts, gene, spot_idx){
     
@@ -272,22 +347,30 @@ simulate_genecount_ES <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_f
 }
 
 
-#' (Refactored) Simulate expression counts for a single gene
+#' Simulate Expression Counts for a Single Gene (Refactored)
 #'
-#' A vectorized version of \code{simulate_genecount_ES}, designed to reduce memory usage by working
-#' with a single gene vector instead of the full count matrix.
+#' A refactored version of \code{\link{simulate_genecount_ES}} that reduces memory usage
+#' by using a single gene count vector instead of the full count matrix.
+#'
+#' Outside-domain baseline expression is computed from \code{gene_count_row}, while the
+#' ordering of spots is enforced using \code{all_spot_names}.
 #'
 #' @param SEED Integer random seed for reproducibility.
 #' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
 #' @param coords_norm_out Data frame of normalized coordinates for spots outside the domain.
 #' @param nnGP_fit Fitted NNGP model object for the gene.
-#' @param seqDepth_factor Numeric scaling factor for sequencing depth.
-#' @param ES_factor Numeric scaling factor for effect size.
-#' @param gene_count_row Numeric vector of counts for the gene of interest.
-#' @param all_spot_names Character vector of all spot names (column names of original count matrix).
-#' @param spot_idx Numeric vector indicating indices of spots within the domain.
-#' @return Numeric vector of simulated counts for all spots, ordered according to \code{all_spot_names}.
-#' @export
+#' @param seqDepth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
+#' @param ES_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
+#' @param gene_count_row Numeric vector of observed counts for the target gene across all spots.
+#' @param all_spot_names Character vector of all spot names (canonical ordering).
+#' @param spot_idx Integer vector indicating indices of spots within the domain
+#'   (relative to \code{all_spot_names}).
+#'
+#' @return Numeric vector of simulated counts for all spots, ordered to match
+#' \code{all_spot_names}.
+#'
+#' @noRd
+
 simulate_genecount_ES_refactored <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, gene_count_row, all_spot_names, spot_idx){
   
   b.condition <- mean_in(SEED, coords_norm_sub, nnGP_fit)
@@ -326,15 +409,22 @@ simulate_genecount_ES_refactored <- function(SEED, coords_norm_sub, coords_norm_
   
 
 
-#' Compute mean expression inside a domain
+#' Predict Within-Domain Mean Expression from a Fitted NNGP Model
 #'
-#' Uses a fitted NNGP model to predict expected expression levels for spots within a domain.
+#' Uses a fitted NNGP model to predict expected expression levels for each spot inside a domain.
+#' The predicted values are transformed to the count scale and returned as a numeric vector,
+#' which is used as the within-domain mean intensity in simulation.
 #'
-#' @param SEED Integer random seed for reproducibility
+#' @param SEED Integer random seed for reproducibility.
 #' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
-#' @param nnGP_fit Fitted NNGP model object for the gene.
-#' @return Numeric vector of predicted expression levels for each spot within the domain
-#' @export
+#'   Must contain columns \code{x} and \code{y}.
+#' @param nnGP_fit Fitted NNGP model object for the gene (compatible with
+#'   \code{BRISC::BRISC_prediction}).
+#'
+#' @return Numeric vector of predicted within-domain mean expression values.
+#'
+#' @noRd
+
 mean_in <- function(SEED, coords_norm_sub, nnGP_fit) {
     if (missing(SEED) || !is.numeric(SEED)) stop("SEED must be a numeric value.")
     if (!is.data.frame(coords_norm_sub) || !all(c("x", "y") %in% names(coords_norm_sub))) stop("coords_norm_sub must be a data frame with 'x' and 'y' columns.")
@@ -351,15 +441,18 @@ mean_in <- function(SEED, coords_norm_sub, nnGP_fit) {
     return(b.condition)
 }
 
-#' Compute mean expression for spots outside the domainO
+#' Compute Outside-Domain Baseline Mean Expression
 #'
-#' Calculates the mean of the lower half of expression counts for spots outside the domain for a given gene.
-#' 
+#' Calculates the outside-domain baseline mean for a given gene by taking the mean of the
+#' lower half (<= median) of counts outside the domain. This provides a robust baseline
+#' against high-expression outliers.
+#'
 #' @param counts Matrix of gene expression counts (genes x spots).
 #' @param gene Character string specifying the gene name.
-#' @param spot_idx Numeric vector indicating the indices of spots within the domain.
-#' @return Numeric value representing the mean of the lower half of counts outside the domain for the given gene.
-#' @export
+#' @param spot_idx Integer vector indicating indices of spots within the domain.
+#'
+#' @return Numeric scalar representing the outside-domain baseline mean expression.
+#' @noRd
 mean_out <- function(counts, gene, spot_idx) {
     if (!inherits(counts, "matrix") && !inherits(counts, "CsparseMatrix")) {
       stop("counts must be a matrix or dgCMatrix.")
@@ -375,12 +468,16 @@ mean_out <- function(counts, gene, spot_idx) {
 }
 
 
-#' (Refactored) Calculate Mean for Outside Domain Spots
+#' Compute Outside-Domain Baseline Mean Expression (Refactored)
 #'
-#' @param gene_count_row Numeric vector of counts for a single gene.
-#' @param spot_idx Numeric vector indicating the indices of spots within the domain.
-#' @return Numeric value representing the mean of the lower half of counts outside the domain.
-#' @export
+#' Refactored version of \code{mean_out} that works on a single gene count vector rather than a
+#' full gene-by-spot matrix.
+#'
+#' @param gene_count_row Numeric vector of observed counts for a single gene across all spots.
+#' @param spot_idx Integer vector indicating indices of spots within the domain.
+#'
+#' @return Numeric scalar representing the outside-domain baseline mean expression.
+#' @noRd
 mean_out_refactored <- function(gene_count_row, spot_idx){
   if(!is.numeric(spot_idx)) stop('spot_idx must be numeric.')
   
