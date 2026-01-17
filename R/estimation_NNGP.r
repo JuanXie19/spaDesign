@@ -1,31 +1,40 @@
 #' Estimate the NNGP Parameters for domain-informative genes
 #'
-#' Fits a Nearest-Neighbor Gaussian Process (NNGP) model for each domain-informative gene.
+#' Fits a Nearest-Neighbor Gaussian Process (NNGP) model for each domain-informative gene
+#' using the BRISC package.
 #'
 #' @param spaDesign A \code{spaDesign} object containing spatial coordinates in \code{refcolData}
 #' and expression values in \code{refCounts}.
 #' @param n_neighbors Number of nearest neighbors for NNGP fitting (default = 10)
-#' @param order Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD'). If non-Visium data, switch to 'Sum_coords'
+#' @param order Ordering scheme for coordinates('AMMD' or 'Sum_coords', default = 'AMMD'). 
+#'  use 'Sum_coords' for non-visium data
 #' @param X Optional design matrix of covariates
 #' @param verbose Logical, whether to display progress messages (default = FALSE)
 #' 
 #' @return Updated \code{spaDesign} object. The slot \code{paramsGP} is a nested list:
 #' \code{paramsGP[[domain]][[gene]]} contains the BRISC NNGP fit for that gene.
 #' 
+#' @details
+#' Coordinates are normalized to [0,1] range before fitting. For each domain, NNGP models
+#' are fit to log-transformed expression (log(count + 1)) for all selected genes within that domain.
+#' 
+#' @return Updated \code{spaDesign} object with \code{paramsGP} slot populated. 
+#'   This is a nested list: \code{paramsGP[[domain]][[gene]]} contains the BRISC fit object.
+#' 
 #' @import igraph
 #' @import dplyr
 #' @import BRISC
 #' @import Matrix
 #' @export
+#' 
 #' @examples
 #' \dontrun{
-#' toyDATA <- createDesignObject(count_matrix = toyData$toyCount, loc = toyData$loc)
-#' toyDATA <- estimation_NNGP(toyDATA, 
-#'                             n_neighbors = 10, 
-#'                             order = 'AMMD', 
-#'                             X = NULL, 
-#'                             verbose = FALSE)
-#'}
+#' toyDATA <- createDesignObject(count_matrix = toyData$toyCount, 
+#'                                loc = toyData$loc)
+#' toyDATA <- featureSelection(toyDATA, logfc_cutoff = 0.7, 
+#'                             mean_in_cutoff = 2, max_num_gene = 50, n_cores = 4)
+#' toyDATA <- estimation_NNGP(toyDATA, n_neighbors = 10, order = 'AMMD')
+#' }
 
 estimation_NNGP <- function(spaDesign, 
                             n_neighbors = 10, 
@@ -116,23 +125,28 @@ estimation_NNGP <- function(spaDesign,
 
 
 #' Fit a Nearest-Neighbor Gaussian Process(NNGP) model
-#' The internal function that fits an NNGP model using the BRISC package
+#' 
+#' Internal function that fits an NNGP model using the BRISC package
 #'
-#' @param spatial_coords Matrix of spatial coordinates (rows = spots)
-#' @param logCount vector of log-transformed gene expression counts
-#' @param X Optional design matrix of covariates
-#' @param n_neighbors Number of nearest neighbors for fitting NNGP model with BRISC. Default = 10.
-#' @param order: Ordering scheme to use for ordering coordinates with BRISC.('AMMD' or 'Sum_coords', default = 'AMMD'). See BRISC documentation for details.
-#' @param verbose Whether to display process messages (default = FALSE)
-#' @return BRISC fitted model object
+#' @param spatial_coords Matrix of spatial coordinates (n × 2).
+#' @param logCount Numeric vector of log-transformed gene expression.
+#' @param X Optional design matrix of covariates.
+#' @param n_neighbors Integer. Number of nearest neighbors (default: 10).
+#' @param order Character. Coordinate ordering: 'AMMD' (default) or 'Sum_coords'.
+#' @param verbose Logical. Display progress messages (default: FALSE).
+#' 
+#' @return BRISC fitted model object.
+#' 
 #' @import BRISC
-#' @keywords internal
+#' @noRd
 
 nnGPfit <- function(spatial_coords, logCount, X = NULL, 
-					n_neighbors = 10, order = 'AMMD', verbose = FALSE){					
+					n_neighbors = 10, order = 'AMMD', verbose = FALSE){
+  
 		      order_brisc <- BRISC::BRISC_order(coords = spatial_coords, 
 										                        order = order,
-										                        verbose = verbose)										  
+										                        verbose = verbose)
+		      
 		      nn_brisc <- BRISC::BRISC_neighbor(coords = spatial_coords,
 								                      n.neighbors = n_neighbors,
 								                      n_omp = 1, 
@@ -140,6 +154,7 @@ nnGPfit <- function(spatial_coords, logCount, X = NULL,
 								                      search.type = "tree",
 								                      ordering = order_brisc, 
 								                      verbose = verbose)
+		      
 		      BRISCfit <- BRISC::BRISC_estimation(coords = spatial_coords, 
 									                      y = logCount,
 									                      x = X,
@@ -147,5 +162,6 @@ nnGPfit <- function(spatial_coords, logCount, X = NULL,
 									                      neighbor = nn_brisc,
 									                      order = order,
 									                      ordering = order_brisc)
+		      
 	        return(BRISCfit)
 }
