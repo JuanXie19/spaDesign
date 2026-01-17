@@ -69,6 +69,7 @@
 #' )
 #' res$summary
 #' }
+
 saturationDetection <- function(data,
                               metric_col = "NMI",
                               depth_col = "seq_depth",
@@ -76,24 +77,9 @@ saturationDetection <- function(data,
                               pilot_depth = NULL,
                               slope_threshold = 0.05,
                               required_metric_percentage = 0.8,
-                              k = 8,
+                              k = 7,
                               grid_size = 200,
-                              aggregate_reps = FALSE,
-                              plot = TRUE) {
-  # ...
-}
-
-detect_saturation <- function(data,
-                              metric_col = "NMI",
-                              depth_col = "seq_depth",
-                              group_cols = NULL,
-                              pilot_depth = NULL,
-                              slope_threshold = 0.05,
-                              required_metric_percentage = 0.8,
-                              k = 8,
-                              grid_size = 200,
-                              aggregate_reps = FALSE,
-                              plot = TRUE) {
+                              aggregate_reps = FALSE) {
   
   if (!requireNamespace("scam", quietly = TRUE)) stop("Package 'scam' is required.")
   if (!requireNamespace("dplyr", quietly = TRUE)) stop("Package 'dplyr' is required.")
