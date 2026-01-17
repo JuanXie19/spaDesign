@@ -3,7 +3,7 @@
 #'
 #' Fits a Fisher-Gaussian mixture model to spatial coordinates using the EM algorithm.
 #'
-#' @param x Numeric matrix of coordinates (rows = observersion, cols = dimensions)
+#' @param x Numeric matrix of coordinates (rows = observation, cols = dimensions)
 #' @param M Number of mixture components(clusters) (default: 5)
 #' @param iter_max Maximum number of EM iterations (default: 1000)
 #' @param tol Convergence tolerance for change in log-likelihood (default: 1e-1)
@@ -17,11 +17,12 @@
 #'   \item{log_likelihood}{Log-likelihood trajectory over iterations}
 #'   \item{n_iter}{Number of iterations performed}
 #'   \item{W}{Posterior cluster assignment probabilities}
-#' @export
+#' @examples
 #' # Generate example 2D data
 #' set.seed(123)
 #' x <- matrix(rnorm(100), ncol = 2)
 #' fit <- FG_EM(x, M = 3, iter_max = 100, tol = 1e-2)
+#' @noRd
 #' 
 FG_EM <- function(x, M, iter_max = 500, tol = 1e-1 ){
   
@@ -90,7 +91,7 @@ FG_EM <- function(x, M, iter_max = 500, tol = 1e-1 ){
 #'   \item{sigma_sq}{Initial residual variance}
 #'   \item{phi_hat}{Initial mean directions}
 #'   \item{tau_hat}{Initial angular spreads}
-#' @keywords internal
+#' @noRd
 initial_kmeans <- function(x, M){
   n <- nrow(x)
   pi_hat <- rep(1/M, M)
@@ -170,7 +171,7 @@ initial_kmeans <- function(x, M){
 #' @return A list with:
 #'   \item{W}{Posterior probabilities of cluster membership (n x M)}
 #'   \item{y_expect_list}{List of expected normalized vectors for each cluster}
-#' @keywords internal
+#' @noRd
 
 E_step <- function(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq){
   n <- nrow(x)
@@ -208,7 +209,7 @@ E_step <- function(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq){
 #'   \item{phi_hat}{Updated mean directions}
 #'   \item{tau_hat}{Updated angular spreads}
 #'   \item{sigma_sq}{Updated Gaussian noise}
-#' @keywords internal
+#' @noRd
 
 M_step <- function(x, W, y_expect_list, c_hat, r_hat, phi_hat, tau_hat){
   n <- nrow(x)
@@ -281,7 +282,7 @@ for (k in 1: M){
 #'   \item{BIC}{Bayesian Information Criterion}
 #'   \item{n_parameters}{Number of estimated parameters in the model}
 #'   \item{converged_iter}{Number of EM iterations until convergence}
-#' @keywords internal
+#' @noRd
 FG_EM_with_criteria <- function(x, M, iter_max, tol) {
   fit <- FG_EM(x, M, iter_max, tol)
   
@@ -323,7 +324,6 @@ FG_EM_with_criteria <- function(x, M, iter_max, tol) {
 #'   \item{best_M_BIC}{Best M according to BIC}
 #'   \item{best_model_AIC}{FG-EM model corresponding to best AIC}
 #'   \item{best_model_BIC}{FG-EM model corresponding to best BIC}
-#' @export
 #' @noRd
 
 select_best_M <- function(x, M_candidates = 2:5, iter_max = 1000, tol = 1e-1) {
@@ -369,12 +369,13 @@ select_best_M <- function(x, M_candidates = 2:5, iter_max = 1000, tol = 1e-1) {
 }
 
 
-## Given the FG-mixture results and a number N, this function generates N samples from estimated density, and also provides scatter plots with and withour error of the same
+## Given the FG-mixture results and a number N, this function generates N samples from estimated density
 #' @import movMF
 #' @import mvtnorm
 #' @import matrixStats
 #' @import Directional
-#' @export
+#' @import MASS
+#' @noRd
 plot_density_FG_EM <- function(N, rst){
   cntr <- rst$c
   rd <- rst$r
@@ -404,15 +405,5 @@ plot_density_FG_EM <- function(N, rst){
   }
   error <- MASS::mvrnorm(N, rep(0, D), sigma.sq * diag(D))
   w <- z + error
-  if(D == 2){
-    par(mfrow=c(1,2))
-    plot(z[, 1], z[, 2],main = "Without error", lwd = 3,cex = .3)
-    plot(w[, 1], w[, 2],main = "Predictive", lwd = 3, cex = .3)
-  }
-  if(D == 3){
-    library(plot3D)
-    scatter3D(z[, 1],z[, 2],z[, 3],main = "Without error",lwd = 3,cex = .3)
-    scatter3D(w[, 1],w[, 2],w[, 3],main = "Predictive",lwd = 3,cex = .3)
-  }
   return(list(z,w))
 }
