@@ -19,15 +19,16 @@
 #'   \item{NMI}{Normalized Mutual Information from power evaluation.}
 #' }
 #' 
-#' @import pbmcapply
+#' @importFrom parallel mclapply
 #' @export
 #' 
 #' @examples
 #' \dontrun{
-#'   prop_range <- c(0.1, 0.5, 1)
-#'   seq_depth_range <- c(0.5, 1, 3, 5)
-#'   n_rep <- 10
-#'   results <- powerAnalysisSpatial(spaDesign, SIGMA = 1, prop_range, seq_depth_range, n_rep, n_cores = 2)
+#'   results <- powerAnalysisSpatial(spaDesign, SIGMA = 1, 
+#'                   prop_range = c(0.5, 0.7), 
+#'                   seq_depth_range = c (1, 3, 5), 
+#'                   n_rep = 3, 
+#'                   n_cores = 4)
 #' }
 
 powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, n_rep, n_cores) {
