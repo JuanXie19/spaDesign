@@ -1,19 +1,52 @@
 #' Simulate data with modified sequencing depth and dispersion
 #'
 #' This function generates simulated spatial gene expression counts by combining baseline domain-informative
-#' expression patterns with perturbed spot locations. It allows scaling of sequencing depth and the 
-#' \code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
+#' expression patterns with perturbed spot locations. i.e.,creates a mixture where a proportion of genes retain their original spatial
+#' patterns while others are simulated with disturbed locations.
+#' It allows scaling of sequencing depth and the \code{sigma} parameter from the FG model, and can keep a proportion of genes undisturbed.
 #' 
-#' @param spaDesign A \code{spaDesign} object containing spatial coordinates, gene expression,
-#'   and fitted GP/FG parameters.
-#' @param selected_M_list Optional list of selected FG model indices for each domain. If \code{NULL},
-#'   the function will attempt to use \code{spaDesign@selected_M_list_BIC}.
-#' @param seq_depth_factor Numeric scaling factor for sequencing depth
-#' @param SIGMA Numeric scaling factor for the \code{sigma} parameter from the FG model.
-#' @param SEED Integer random seed for reproducibility.
-#' @param prop Numeric, proportion of genes to keep undisturbed (between 0 and 1).
-#' @return A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, and
-#'   updated spot metadata in \code{simcolData}.
+#' @param spaDesign A \code{spaDesign} object containing:
+#'   \itemize{
+#'     \item Spatial coordinates and gene expression data
+#'     \item Fitted GP parameters (from \code{paramsGP} slot)
+#'     \item Fitted FG parameters (from \code{paramsFG} slot)
+#'     \item Domain assignments
+#'   }
+#' @param selected_M_list Optional integer vector specifying which FG model (number of clusters M)
+#'   to use for each domain. If \code{NULL}, uses \code{spaDesign@selected_M_list_BIC}.
+#'   Length must match number of domains.
+#' @param seq_depth_factor Numeric scalar > 0. Multiplicative scaling factor for sequencing depth.
+#'   Values > 1 increase depth; < 1 decrease depth.
+#' @param SIGMA Numeric scalar > 0. Multiplicative scaling factor for the \code{sigma_sq} parameter
+#'   from the FG model. Larger values increase spatial noise/dispersion.
+#' @param SEED Integer. Random seed for reproducibility of GP and FG sampling.
+#' @param prop Numeric in [0,1]. Proportion of genes to keep with original (undisturbed) 
+#'   spatial patterns. The remaining (1-prop) genes will have perturbed locations.
+#' @param n_cores Integer. Number of CPU cores to use for parallel processing via \code{mclapply}.
+#'
+#'
+#' @details
+#' The simulation proceeds in three steps:
+#' \enumerate{
+#'   \item Generate baseline counts for all genes using fitted GP models
+#'   \item Generate perturbed counts using FG-model-based location disturbance
+#'   \item Create final counts by randomly mixing baseline and perturbed patterns,
+#'         with averaging over 1000 random selections
+#' }
+#' 
+#' The FG model parameters are modified as follows:
+#' \itemize{
+#'   \item \code{sigma_sq} is multiplied by \code{SIGMA}
+#'   \item \code{tau} (concentration) is multiplied by 2 to increase spatial perturbation
+#' }
+#'
+#' @return A \code{spaDesign} object with updated slots:
+#'   \describe{
+#'     \item{simCounts}{Numeric matrix (genes × spots) of simulated expression counts,
+#'                      averaged over 1000 replications of random gene selection}
+#'     \item{simcolData}{Data frame of spot metadata, copied from \code{refcolData(spaDesign)}}
+#'   }
+#'
 #' @import pdist
 #' @import clue
 #' @import RANN
@@ -25,24 +58,37 @@
 #' @import pbapply
 #' @import pbmcapply
 #' @import future.apply
+#' @importFrom igraph norm_coords
+#' @importFrom parallel mclapply
+#' 
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' simulated_data <- simulation_Spatial(spadesign_obj, 
-#'                                    seq_depth_factor = 1.5,
-#'                                    SIGMA = 1.2,
-#'                                    SEED = 123,
-#'                                    prop = 0.7)
+#' # Assuming spadesign_obj has fitted GP and FG parameters
+#' simulated_data <- simulation_Spatial(
+#'   spaDesign = spadesign_obj,
+#'   selected_M_list = c(3, 4, 5),  # Use M=3,4,5 for domains 1,2,3
+#'   seq_depth_factor = 1.5,         # 50% increase in sequencing depth
+#'   SIGMA = 1.2,                    # 20% increase in spatial noise
+#'   SEED = 123,
+#'   prop = 0.7,                     # Keep 70% genes undisturbed
+#'   n_cores = 4
+#' )
+#' 
+#' # Access simulated counts
+#' sim_counts <- simulated_data@simCounts
 #' }
+
+
 
 simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores){
   
   if (is.null(selected_M_list)) {
-    if (!is.null(spaDesign@selected_M_list_AIC)) {
+    if (!is.null(spaDesign@selected_M_list_BIC)) {
       selected_M_list <- spaDesign@selected_M_list_BIC
     } else {
-      stop("No selected_M_list provided and spaDesign does not contain selected_M_list_AIC.")
+      stop("No selected_M_list provided and spaDesign does not contain selected_M_list_BIC.")
     }
   }
   
@@ -105,33 +151,19 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
   ## simulate count matrix where the spots location are disturbed
   message('Simulating count matrix for disturbed spots location...')
   
-
   worse_count <- mclapply(seq_along(par_GP), function(d){
     domain <- names(par_GP)[d]
     GP.par <- par_GP[[d]]
     FG.par <- FG_selected_model[[d]]
     
     simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
-  }, mc.cores = n_cores)
-  worse_count <- do.call('rbind', worse_count)
-  
-  generateCount <- function(){
-    COUNT <- lapply(seq_along(par_GP), function(d){
-      domain <- names(par_GP)[d]
-      count.base <- base_count[grep(domain, rownames(base_count)), ]   
-      count.worst <- worse_count[grep(domain, rownames(worse_count)), ]
-      n <- nrow(count.base)
-      
-      set.seed(SEED)
-      keep.idx <- sample(seq_len(n),round(prop * n))
-      count_combined <- rbind(count.base[keep.idx, ], count.worst[-keep.idx, ])
-      rownames(count_combined) <- c(rownames(count.base)[keep.idx],rownames(count.worst)[-keep.idx])
-      count_combined <- count_combined[order(match(rownames(count_combined),rownames(count.base))),]
-      return(count_combined)
-    })
-    COUNT <- do.call('rbind', COUNT)
-    return(COUNT)
+  }, mc.cores = n_cores, mc.preschedule = FALSE)
+  # Check for errors
+  if (any(sapply(worse_count, inherits, "try-error"))) {
+    stop("Error in parallel processing of worse_count. Try reducing n_cores or check error messages.")
   }
+  
+  worse_count <- do.call('rbind', worse_count)
   
   generateCount_fast <- function(){
     count_combined <- base_count
@@ -146,13 +178,6 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
   }, future.seed = TRUE)
   COUNT.SIM <- Reduce(`+`, COUNT.SIM_LIST) / REPEAT
   
-  if(FALSE){
-  REPEAT <- 1000
-  #COUNT.SIM <- lapply(seq_len(REPEAT), function(x) generateCount())%>% Reduce('+',.)/REPEAT
-  
-  COUNT.SIM <- replicate(REPEAT, generateCount(), simplify = F)
-  COUNT.SIM <- Reduce('+', COUNT.SIM)/REPEAT
-  }
   message("Simulation complete.\n")
   spaDesign@simCounts <- COUNT.SIM
   spaDesign@simcolData <- refcolData(spaDesign)
@@ -167,7 +192,6 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
 #' @param coords_norm_sub Data frame of normalized coordinates for spots inside the domain.
 #' @param nnGP_fit Fitted NNGP model object for the gene.
 #' @return Numeric vector of simulated counts for the spots inside the domain.
-#' @export
 #' @noRd
 simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit){
   
@@ -188,7 +212,6 @@ simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_
 #' @param spot_idx Numeric vector of indices of spots inside the domain.
 #' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
 #' @return Numeric vector of simulated counts for the spots outside the domain.
-#' @export
 #' @noRd
 simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_idx, COORDS.OUT){
    
@@ -211,7 +234,6 @@ simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_id
 #' @param spot_idx Numeric vector of indices of spots inside the domain.
 #' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
 #' @return Numeric vector of simulated counts for the spots outside the domain.
-#' @export
 #' @noRd
 simulate_geneCounts_out_refactored <- function(SEED, seqDepth_factor, gene_count_row, spot_idx, COORDS.OUT){
   
@@ -233,8 +255,7 @@ simulate_geneCounts_out_refactored <- function(SEED, seqDepth_factor, gene_count
 #' @param y.out Numeric vector of simulated counts for outside-domain spots.
 #' @param counts Original count matrix (for column ordering).
 #' @return Data frame of simulated counts for all spots, ordered to match the original count matrix.
-#' @export
-
+#' @noRd
 combine_in_out <- function(COORDS.IN, COORDS.OUT, y.post, y.out, counts){
   sim.in <- data.frame(x = COORDS.IN$x,y = COORDS.IN$y, sim = y.post)
   rownames(sim.in) <- rownames(COORDS.IN)
@@ -254,7 +275,6 @@ combine_in_out <- function(COORDS.IN, COORDS.OUT, y.post, y.out, counts){
 #' @param domain Character string of domain name.
 #' @param GP.par List of GP parameters for the genes in the domain.
 #' @return Matrix of simulated counts for all genes in the domain, with appropriate row and column names.
-#' @export
 #' @noRd
 process_count <- function(GENE.COUNT, counts, domain, GP.par){
   if (any(sapply(GENE.COUNT, is.null)) == 'FALSE') {
@@ -271,6 +291,9 @@ process_count <- function(GENE.COUNT, counts, domain, GP.par){
  
 #' Simulate expression counts for a set of domain-informative genes without modifying their spatial patterns.
 #'
+#' Generates baseline (undisturbed) expression counts for genes in a domain using fitted GP models.
+#' Inside-domain expression follows the GP model; outside-domain expression uses the lower 50% quantile.
+#'
 #' @param SEED Integer random seed for reproducibility.
 #' @param seqDepth_factor Numeric scaling factor for sequencing depth.
 #' @param domain Character string specifying the domain.
@@ -278,7 +301,7 @@ process_count <- function(GENE.COUNT, counts, domain, GP.par){
 #' @param counts Original count matrix (genes x spots).
 #' @param coords_norm Data frame of normalized coordinates for all spots.
 #' @return Matrix of simulated expression counts for the domain genes.
-#' @export
+#' @noRd
 simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, coords_norm){
     
     spot_idx <- which(coords_norm$domain == domain)        
@@ -314,6 +337,10 @@ simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, c
 
 #' Simulate perturbed expression counts for a set of domain-informative genes.
 #'
+#' Generates expression counts with spatially perturbed spot locations using the FG model.
+#' New locations are sampled from a modified FG distribution, then matched to original spots
+#' via Hungarian algorithm.
+#' 
 #' @param SEED Integer random seed for reproducibility.
 #' @param seqDepth_factor Numeric scaling factor for sequencing depth.
 #' @param domain Character string specifying the domain.
@@ -323,7 +350,7 @@ simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, c
 #' @param FG.par FG model parameters for the domain.
 #' @param SIGMA Numeric scaling factor for FG sigma.
 #' @return Matrix of simulated counts for the domain genes.
-#' @export
+#' @noRd
 simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, counts, coords_norm, SIGMA){
 
   ## modulate the spatial pattern via changing the sigma in the FG fit
@@ -342,9 +369,11 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
     N.loc <- round(n.loc * 2)
   
   
-    set.seed(123456)
+    set.seed(SEED)
     pred.loc1 <- plot_density_FG_EM(N.loc, FG.sim)[[2]]
+    set.seed(SEED + 1)
     pred.loc2 <- plot_density_FG_EM(N.loc, FG.sim)[[2]]
+    set.seed(SEED + 2)
     pred.loc3 <- plot_density_FG_EM(N.loc, FG.sim)[[2]]
     pred.loc <- rbind(pred.loc1,pred.loc2,pred.loc3)
     colnames(pred.loc) <- c('x', 'y')
@@ -414,11 +443,15 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
     
 #' Get nearest neighbor indices between two sets of points
 #'
+#' Finds the nearest neighbor in the target matrix for each point in the source matrix.
+#' Points whose nearest neighbor is farther than the minimum pairwise distance in the
+#' target set are marked as outliers with index -1.
+#'
 #' @param source_matrix Matrix of coordinates for source points (rows = points, columns = x,y).
 #' @param target_matrix Matrix of coordinates for target points (rows = points, columns = x,y).
 #' @return Integer vector of nearest neighbor indices for each source point in the target matrix.
 #'   If no neighbor is within minimal distance, the index is -1.
-#' @export
+#' @noRd
 Nearest_RANN <- function(source_matrix, target_matrix) {
     nn_result <- RANN::nn2(target_matrix, source_matrix, k = 1)
     nearest_indices <- nn_result$nn.idx
@@ -439,7 +472,17 @@ Nearest_RANN <- function(source_matrix, target_matrix) {
 }
 
 
-# Vectorized function
+#' Get nearest neighbor indices (vectorized version)
+#'
+#' Vectorized implementation of nearest neighbor search. Finds the nearest neighbor
+#' in the target matrix for each point in the source matrix.
+#'
+#' @param source_matrix Numeric matrix of coordinates for source points (rows = points, columns = x,y).
+#' @param target_matrix Numeric matrix of coordinates for target points (rows = points, columns = x,y).
+#' @return Integer vector of nearest neighbor indices for each source point in the target matrix.
+#'   Returns -1 for source points whose nearest neighbor distance exceeds the minimum
+#'   pairwise distance within the target set (i.e., isolated outliers).
+#' @noRd
 Nearest_RANN_vectorized <- function(source_matrix, target_matrix) {
   nn_result <- RANN::nn2(target_matrix, source_matrix, k = 1)
   nearest_indices <- as.vector(nn_result$nn.idx)
