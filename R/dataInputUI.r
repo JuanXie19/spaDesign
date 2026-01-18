@@ -31,12 +31,18 @@ dataInputUI <- function(id) {
           numericInput(ns("n_clusters"), "Number of expected clusters:", value = 7, min=2, step=1)
         ),
         
-        checkboxInput(ns("show_advanced"), "Show advanced feature selection options", value = FALSE),
+        checkboxInput(ns("show_advanced"), "Show advanced options", value = FALSE),
         conditionalPanel(
           condition = sprintf("input['%s']", ns("show_advanced")),
+          h5('Feature Selection Parameters'),
           sliderInput(ns("logfc_cutoff"), "logFC cutoff:", min=0.1, max=2, value=0.7, step=0.1),
           sliderInput(ns("mean_in_cutoff"), "Mean in cutoff:", min=0.5, max=5, value=1.8, step=0.1),
-          numericInput(ns("max_num_gene"), "Max number of genes:", value=10, min=1, step=1)
+          numericInput(ns("max_num_gene"), "Max number of genes:", value=10, min=1, step=1),
+          
+          hr(),
+          h5('Computational Parameters'),
+          numericInput(ns('n_cores'), 'Number of CPU cores:', value = 1, min = 1, max = parallel::detectCores(), step = 1),
+          helpText(paste('Your system has', parallel::detectCores(), 'cores available.'))
         ),
         
         # action button to triggole the analysis

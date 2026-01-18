@@ -123,7 +123,7 @@ dataInputServer <- function(id, reference_data_paths) {
             all.genes <- rownames(seurat)
             seurat <- Seurat::ScaleData(seurat, features = all.genes)
             seurat <- Seurat::RunPCA(seurat)
-            seurat <- Seurat::RunUMAP(seurat, dims = 1:30)
+            #seurat <- Seurat::RunUMAP(seurat, dims = 1:30)
             seurat <- Seurat::FindNeighbors(seurat, dims = 1:30)
             seurat <- Seurat::FindClusters(seurat, resolution = 2)
             
@@ -153,6 +153,7 @@ dataInputServer <- function(id, reference_data_paths) {
       logfc_cutoff <- if (isTRUE(input$show_advanced)) input$logfc_cutoff else 0.7
       mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
       max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
+      n_cores <- if(isTRUE(input$show_advanced)) input$n_cores else 1
       
       tryCatch({
         withProgress(message = "Creating design object...", value = 0.2, {
@@ -166,7 +167,7 @@ dataInputServer <- function(id, reference_data_paths) {
             logfc_cutoff = logfc_cutoff,
             mean_in_cutoff = mean_in_cutoff,
             max_num_gene = max_num_gene,
-            n_cores = 1
+            n_cores = n_cores
           )
           message("✓ Feature selection completed")
         })
@@ -179,7 +180,7 @@ dataInputServer <- function(id, reference_data_paths) {
             X = NULL,
             verbose = FALSE
           )
-          message("✓ Feature selection completed")
+          message("✓ NNGP estimation completed")
         })
         
         
@@ -190,7 +191,7 @@ dataInputServer <- function(id, reference_data_paths) {
             iter_max = 1000,
             M_candidates = 2:7,
             tol = 1e-1,
-            n_cores = 1
+            n_cores = n_cores
           )
           message("✓ FGEM estimation completed")
         })
