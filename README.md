@@ -16,7 +16,8 @@ The framework follows these steps:
 3.  **Evaluate:** Measure domain recovery (NMI) to identify the saturation point.
 
 ---
-
+The workflow is illustrated in the following figure
+![Workflow Diagram](man/figures/workflow.png)
 ## Installation
 
 You can install the development version of `spaDesign` from GitHub:
