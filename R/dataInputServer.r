@@ -10,7 +10,7 @@
 #' @import ggplot2
 #' @import data.table
 #' @import Seurat
-#' @export
+#' @noRd
 
 dataInputServer <- function(id, reference_data_paths) {
   moduleServer(id, function(input, output, session) {
@@ -27,16 +27,18 @@ dataInputServer <- function(id, reference_data_paths) {
     raw_data <- reactive({
       if (input$data_source == "reference") {
         req(input$reference_dataset)
+        # read the file to extract counts/coords for preview
         data <- readRDS(reference_data_paths[[input$reference_dataset]])
+        
         # Assuming reference data is a list with 'counts' and 'coords'
         return(list(counts = data@refCounts, coords = data@refcolData))
       } else {
         req(input$h5_file, input$positions_file)
+        
         # read Space ranger files
         withProgress(message = 'Reading uploaded data...', {
           # Read h5 file
-          library(Seurat)
-          counts <- Read10X_h5(filename = input$h5_file$datapath)
+          counts <- Seurat::Read10X_h5(filename = input$h5_file$datapath)
           
           # Read tissue_positions_list.csv
           # Assuming standard SpaceRanger tissue_positions_list.csv format:
@@ -91,6 +93,28 @@ dataInputServer <- function(id, reference_data_paths) {
     #     1. if 'anno_provided()' is TRUE, read the file and join
     #     2. if 'anno_provided()' is FALSE, run Seurat clustering
     #================================================================
+    # 3a. Create Base Seurat Object (Only runs once on upload)
+    base_seurat_object <- reactive({
+      req(input$data_source == 'upload', !anno_provided())
+      data <- raw_data()
+      req(data)
+      
+      withProgress(message = "Preprocessing expression data...", {
+        s_obj <- Seurat::CreateSeuratObject(counts = data$counts, assay = 'RNA')
+        s_obj <- Seurat::NormalizeData(s_obj)
+        s_obj <- Seurat::FindVariableFeatures(s_obj, selection.method = 'vst')
+        s_obj <- Seurat::ScaleData(s_obj, features = rownames(s_obj))
+        s_obj <- Seurat::RunPCA(s_obj, verbose = FALSE)
+        # Find neighbors and high-res clusters once
+        s_obj <- Seurat::FindNeighbors(s_obj, dims = 1:20)
+        s_obj <- Seurat::FindClusters(s_obj, resolution = 2, verbose = FALSE)
+        return(s_obj)
+      })
+    })
+    
+    
+    
+    
     processed_coords <- reactive({
       req(raw_data())
       data <- raw_data()
@@ -121,28 +145,21 @@ dataInputServer <- function(id, reference_data_paths) {
         } else{
           # branch 2: no annotation provided, so run clustering
           req(input$n_clusters, input$n_clusters > 1)
-          counts <- data$counts
           
+          seurat_obj <- base_seurat_object()
+
           withProgress(message = "Running clustering to predict domains...", {
-            # --- Seurat Clustering Pipeline ---
-            seurat <- Seurat::CreateSeuratObject(counts = counts, assay = 'RNA')
-            seurat <- Seurat::NormalizeData(seurat)
-            seurat <- Seurat::FindVariableFeatures(seurat, selection.method = 'vst')
-            all.genes <- rownames(seurat)
-            seurat <- Seurat::ScaleData(seurat, features = all.genes)
-            seurat <- Seurat::RunPCA(seurat)
-            seurat <- Seurat::RunUMAP(seurat, dims = 1:30)
-            seurat <- Seurat::FindNeighbors(seurat, dims = 1:30)
-            seurat <- Seurat::FindClusters(seurat, resolution = 2)
             
-            X <- Seurat::AggregateExpression(seurat, assays=DefaultAssay(seurat),
+            X <- Seurat::AggregateExpression(seurat_obj, assays=DefaultAssay(seurat),
                                              slot="scale.data", group.by="seurat_clusters")[[1]]
             clust2 <- cutree(hclust(dist(t(X))), k = input$n_clusters)
-            new_labels <- clust2
-            names(new_labels) <- levels(seurat)
+            # Map back to cells
+            current_clusters <- Idents(seurat_obj)
+            # Create a named vector for mapping
+            cluster_map <- clust2[as.character(current_clusters)]
+            names(cluster_map) <- names(current_clusters)
             
-            clusters <- Idents(seurat)
-            coords$domain <- new_labels[as.character(clusters[colnames(counts)])]
+            coords$domain <- cluster_map[rownames(coords)]
           })
         }
       }
@@ -181,9 +198,6 @@ dataInputServer <- function(id, reference_data_paths) {
         })
         
         return(DATA)
-      }, finally = {
-        sink(type = 'message')
-        sink()
       })
     })
     
@@ -198,7 +212,7 @@ dataInputServer <- function(id, reference_data_paths) {
         # --- PATH 1: REFERENCE DATA ---
         # Data is pre-processed, just return it.
         req(input$reference_dataset)
-        return(reference_data[[input$reference_dataset]])
+        return(reference_data_paths[[input$reference_dataset]])
         
       } else {
         return(processed_design_object())
