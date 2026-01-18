@@ -1,6 +1,5 @@
 # spaDesign: Simulation-based Experimental Design for Sequencing-based Spatial Transcriptomics Studies
 
-[![R-CMD-check](https://github.com/JuanXie19/spaDesign/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/JuanXie19/spaDesign/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
@@ -9,7 +8,7 @@
 
 It helps researchers answer the critical question: **"How much sequencing depth do I actually need?"** by quantifying how sequencing depth and signal strength (e.g., domain effect size) impact domain recovery performance (NMI/ARI). It provides tools to detect the **saturation depth**—the point where additional sequencing yields diminishing returns.
 
-### Workflow
+## Workflow
 The framework follows these steps:
 1. **feature selection:** Select domain-informative genes
 1.  **Model:** Learn spatial parameters from a pilot or public dataset (NNGP-based).
@@ -29,9 +28,11 @@ if (!requireNamespace("devtools", quietly = TRUE))
 devtools::install_github("JuanXie19/spaDesign")
 ```
 ## Quick Start
+```r
+# load the package
 library(spaDesign)
-
-### 1. create a `spaDesign` object
+```
+### 1. Create a `spaDesign` object
 ```r
 DATA <- createDesignObject(count_matrix = count_matrix, loc = loc_file)
 ```
