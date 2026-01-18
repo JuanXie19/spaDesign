@@ -11,12 +11,13 @@ It helps researchers answer the critical question: **"How much sequencing depth 
 ## Workflow
 The framework follows these steps:
 1. **feature selection:** Select domain-informative genes
-1.  **Model:** Learn spatial parameters from a pilot or public dataset (NNGP-based).
-2.  **Simulate:** Generate new count matrices under varying sequencing depths and effect sizes/spatial disturbance.
-3.  **Evaluate:** Measure domain recovery (NMI) to identify the saturation point.
+2. **parameter estimation:**Learn spatial parameters from a pilot dataset.
+3. **data simulation:** Generate new count matrices under varying sequencing depths and effect sizes/spatial disturbance.
+4. **performance evaluation:** Applying clustering to simulated data and measure domain recovery using NMI.
+5. **sequencing depth recommendation:** Fit smooth curve to model the relationship between NMI and sequencing depth, and identify the saturation point in the curve as recommended sequencing depth
 
 ---
-The workflow is illustrated in the following figure
+The workflow is illustrated in the following figure:
 ![Workflow Diagram](man/figures/workflow.png)
 ## Installation
 
