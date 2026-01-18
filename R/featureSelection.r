@@ -24,7 +24,7 @@
 #'   fold change statistics.
 
 #' @import dplyr
-#' @importFrom pbmcapply pbmclapply
+#' @importFrom parallel mclapply
 #' @export
 #'
 #' @examples
@@ -56,7 +56,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 	
 	FC_list <- geneSummary(count_matrix, loc_file, n_cores)
 	
-	top_genes <- pbmcapply::pbmclapply(FC_list, function(DF) {
+	top_genes <- parallel::mclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 
@@ -149,7 +149,7 @@ geneSummary <- function(count_matrix, loc, n_cores){
 	domains <- sort(unique(loc$domain))
 	log_count <- log(count_matrix + 1)
 	
-	fc_results <- pbmclapply(domains, function(domain) {
+	fc_results <- parallel::mclapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
         rst <- sapply(seq_len(nrow(log_count)), function(gene) {
             spot_idx <- which(loc$domain == domain)

@@ -26,7 +26,7 @@
 #' @importFrom igraph norm_coords
 #' @import dplyr
 #' @import invgamma
-#' @import pbmcapply
+#' @import parallel
 #' @import MASS
 #' @import movMF
 #' @import Rfast
@@ -80,7 +80,7 @@ estimation_FGEM <- function(spaDesign,
   }
   
   # fit models for each domain
-	RST <- pbmcapply::pbmclapply(seq_along(DOMAIN), function(d){
+	RST <- parallel::mclapply(seq_along(DOMAIN), function(d){
 		          coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
 		          
 		          FIT <- tryCatch({
