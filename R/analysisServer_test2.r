@@ -5,7 +5,7 @@
 #' @param id Module namespace.
 #' @param data_obj A reactive returning the processed data.
 #' @return Reactive simulation results.
-#' @export
+#' @noRd
 
 analysisServer <- function(id, data_obj){
   moduleServer(id, function(input, output, session){

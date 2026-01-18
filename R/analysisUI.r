@@ -7,7 +7,7 @@
 #' @importFrom plotly plotlyOutput
 #' @importFrom shinyBS bsTooltip
 #' @return Shiny UI element.
-#' @export
+#' @noRd
 
 analysisUI <- function(id){
   ns <- NS(id)
