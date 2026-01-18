@@ -1,33 +1,3 @@
-###
-detect_saturation <- function(model, threshold = 0.005, consecutive = 3){
-  new_data <- data.frame(real_seq_depth = seq(min(model$model$real_seq_depth), 
-                                              max(model$model$real_seq_depth), 
-                                              length.out = 200))
-  
-  new_data$NMI_pred <- predict(model, new_data)
-  
-  # approximate derivative
-  new_data$deriv <- c(NA, diff(new_data$NMI_pred)/diff(new_data$real_seq_depth))
-  
-  # find first index where slope stays below threshold for 'consecutive' points
-  below_thresh <- new_data$deriv < threshold
-  run_len <- rle(below_thresh)
-  consec_idx <- which(run_len$values & run_len$lengths >= consecutive)
-  
-  if(length(consec_idx) ==0){
-    return(NA)
-  }
-  
-  # map back to position in new_data
-  start_pos <- sum(run_len$lengths[seq_len(consec_idx[1] - 1)]) + 1
-  sat_depth <- new_data$real_seq_depth[start_pos]
-  return(sat_depth)
-}
-
-
-
-
-
 #' Analysis Server Module
 #'
 #' Server logic for simulation and analysis tab.
@@ -93,69 +63,106 @@ analysisServer <- function(id, data_obj){
                real_seq_depth = round(real_seq_depth, 3))
     })
     
-    saturation_points <- reactiveVal(list())
+    # Updated reactive for saturation detection with user parameters
+    saturation_results <- reactive({
+      raw_data <- combined_raw_data()
+      req(raw_data)
+      
+      # Get parameters from UI or use defaults
+      slope_thresh <- if (isTRUE(input$show_saturation_advanced)) {
+        input$slope_threshold
+      } else {
+        0.005
+      }
+      
+      metric_pct <- if (isTRUE(input$show_saturation_advanced)) {
+        input$metric_percentage
+      } else {
+        0.8
+      }
+      
+      # Run saturation detection with user-specified or default parameters
+      saturationDetection(
+        data = raw_data,
+        metric_col = "NMI",
+        depth_col = "seq_depth",
+        group_cols = "condition",
+        pilot_depth = original_seq_depth(),
+        slope_threshold = slope_thresh,
+        required_metric_percentage = metric_pct,
+        k = 7,
+        grid_size = 200,
+        aggregate_reps = TRUE
+      )
+    })
     
     output$sim_plot <- renderPlotly({
-      saturation_points(list())
+      sat_results <- saturation_results()
       plot_data_summary <- processed_plot_data()
       
       validate(
         need(nrow(plot_data_summary) > 0, "Press 'Run simulation' to see the results.")
       )
       
+      # Create base ggplot with observed data
       p <- ggplot(plot_data_summary, aes(x = real_seq_depth, y = mean_NMI, color = condition,
-                                         text = paste("Condition:", condition, "<br>", "Seq.Depth (million):",
-                                                      real_seq_depth, "<br>", "Mean NMI:", mean_NMI))) +
+                                         text = paste("Condition:", condition, "<br>",
+                                                      "Seq.Depth (million):", real_seq_depth, "<br>",
+                                                      "Mean NMI:", mean_NMI))) +
         geom_point() + 
-        geom_errorbar(aes(ymin = mean_NMI - se_NMI, ymax = mean_NMI + se_NMI), width = 0.1) + 
-        labs(title = 'Mean NMI vs. Sequencing depth', x = 'Sequencing depth (million)', y = 'Mean NMI') + 
-        ylim(0,1) + 
-        theme_minimal()
+        geom_errorbar(aes(ymin = mean_NMI - se_NMI, ymax = mean_NMI + se_NMI), width = 0.1) +
+        theme_minimal() +
+        labs(title = 'Mean NMI vs. Sequencing depth', 
+             x = 'Sequencing depth (million)', 
+             y = 'Mean NMI') +
+        ylim(0, 1)
       
-      plot_data_raw <- combined_raw_data()
-      current_saturation_points <- list()
+      # Add fitted curves from saturation detection
+      pred_df <- dplyr::bind_rows(lapply(names(sat_results$predictions), function(g) {
+        x <- sat_results$predictions[[g]]
+        if (is.null(x)) return(NULL)
+        x$condition <- g
+        x
+      }))
       
-      saturation_df <- data.frame()
-      
-      for (i in seq_along(unique(plot_data_raw$condition))){
-        
-        cond <- unique(plot_data_raw$condition)[i]
-        df_subset <- plot_data_raw %>% filter(condition == cond)
-        
-        scam_model <- scam(NMI~s(real_seq_depth, bs = 'mpi', k = 6), data = df_subset)
-        
-        new_data <- data.frame(real_seq_depth = seq(min(df_subset$real_seq_depth), 
-                                                    max(df_subset$real_seq_depth),
-                                                    length.out = 100))
-        new_data$NMI_pred <- predict(scam_model, new_data)
-        new_data$condition <- cond
-        
-        p <- p + geom_line(data = new_data, aes(y = NMI_pred, text = NULL, color = condition), linewidth = 1)
-        
-        ## saturation detection
-        sat_depth <- detect_saturation(scam_model, threshold = 0.005, consecutive = 3)
-        current_saturation_points[[cond]] <- sat_depth
-        
-        if(!is.na(sat_depth)){
-          saturation_df <- rbind(saturation_df,
-                                 data.frame(condition = cond,
-                                            sat_depth = sat_depth,
-                                            label = paste('Sat:', round(sat_depth, 2))))
-        }
+      if (nrow(pred_df) > 0) {
+        p <- p + geom_line(
+          data = pred_df,
+          aes(x = absolute_depth, y = metric_pred, color = condition, text = NULL),
+          linewidth = 1
+        )
       }
       
-      if(nrow(saturation_df) > 0){
-        saturation_df$label_y_offset <- (seq_along(saturation_df$sat_depth) %% 2) * 0.08
-        saturation_df$label_y <- 0.05 + saturation_df$label_y_offset
+      # Add saturation vertical lines
+      sat_summary <- sat_results$summary
+      sat_summary <- sat_summary[!is.na(sat_summary$saturation_absolute_depth), ]
+      
+      if (nrow(sat_summary) > 0) {
+        # Rename group to condition for consistency
+        sat_summary$condition <- sat_summary$group
         
-        p <- p + 
-          geom_vline(data = saturation_df, aes(xintercept = sat_depth, color = condition), linetype = 'dashed') +
-          # Use geom_text instead of annotate for data-driven labels
-          geom_text(data = saturation_df, aes(x = sat_depth, y = label_y, label = label, color = condition), 
-                    angle = 90, vjust = -0.5, hjust = 0, size = 3, inherit.aes = FALSE)
+        # Add vertical dashed lines
+        p <- p + geom_vline(
+          data = sat_summary,
+          aes(xintercept = saturation_absolute_depth, color = condition),
+          linetype = 'dashed',
+          show.legend = FALSE
+        )
+        
+        # Add saturation labels
+        sat_summary$label_y_offset <- (seq_len(nrow(sat_summary)) %% 2) * 0.08
+        sat_summary$label_y <- 0.05 + sat_summary$label_y_offset
+        sat_summary$label <- paste('Sat:', round(sat_summary$saturation_absolute_depth, 2))
+        
+        p <- p + geom_text(
+          data = sat_summary,
+          aes(x = saturation_absolute_depth, y = label_y, label = label, color = condition),
+          angle = 90, vjust = -0.5, hjust = 0, size = 3,
+          inherit.aes = FALSE,
+          show.legend = FALSE
+        )
       }
       
-      saturation_points(current_saturation_points)
       ggplotly(p, tooltip = 'text')
     })
     
@@ -193,4 +200,3 @@ analysisServer <- function(id, data_obj){
     )
   })
 }
-
