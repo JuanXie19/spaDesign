@@ -171,6 +171,18 @@ dataInputServer <- function(id, reference_data_paths) {
           message("✓ Feature selection completed")
         })
         
+        withProgress(message = "Learning spatial expression pattern...", value = 0.4, {
+          DATA <- spaDesign::estimation_NNGP(
+            DATA,
+            n_neighbors =  10,
+            order = 'AMMD',
+            X = NULL,
+            verbose = FALSE
+          )
+          message("✓ Feature selection completed")
+        })
+        
+        
         withProgress(message = "Learning domain spatial patterns...", value = 0.8, {
           message("Starting estimation_FGEM...")
           DATA <- spaDesign::estimation_FGEM(
