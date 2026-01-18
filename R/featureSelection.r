@@ -18,6 +18,10 @@
 #'   absolute logFC are retained.
 #' @param n_cores Integer. Number of CPU cores to use for parallel processing across domains.
 #'
+#'#' @return A \code{spaDesign} object with the \code{topGenes} slot updated.
+#'   The \code{topGenes} slot contains a named list where each element corresponds
+#'   to a spatial domain and contains a data frame of selected genes with their
+#'   fold change statistics.
 
 #' @import dplyr
 #' @importFrom pbmcapply pbmclapply
@@ -50,7 +54,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 	count_matrix <- refCounts(spaDesign)
 	loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
 	
-	FC_list <- geneSummary(count_matrix, loc_file)
+	FC_list <- geneSummary(count_matrix, loc_file, n_cores)
 	
 	top_genes <- pbmcapply::pbmclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
@@ -138,8 +142,8 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #'
 #' # View statistics for first domain
 #' head(fc_stats[[1]])
-#' 
-geneSummary <- function(count_matrix, loc, n_cores = 4){
+#'} 
+geneSummary <- function(count_matrix, loc, n_cores){
 	
 	count_matrix <- as.matrix(count_matrix)
 	domains <- sort(unique(loc$domain))
