@@ -29,7 +29,12 @@ required within the domain. Filters out lowly expressed genes.}
 If more genes pass the filters, the top \code{max_num_gene} genes with highest
 absolute logFC are retained.}
 
-\item{n_cores}{Integer. Number of CPU cores to use for parallel processing across domains.}
+\item{n_cores}{Integer. Number of CPU cores to use for parallel processing across domains.
+
+#' @return A \code{spaDesign} object with the \code{topGenes} slot updated.
+The \code{topGenes} slot contains a named list where each element corresponds
+to a spatial domain and contains a data frame of selected genes with their
+fold change statistics.}
 }
 \description{
 Identifies and selects genes that are highly expressed and differential expressed
