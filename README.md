@@ -74,3 +74,4 @@ saturation_point <- saturationDetection(res)
 plotSaturation(saturation_point)
 ```
 ## Vignette
+[spaDesign vignette](https://htmlpreview.github.io/?https://github.com/JuanXie19/package-vignettes/blob/main/spaDesign.html)
