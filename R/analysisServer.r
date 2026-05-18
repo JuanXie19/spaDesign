@@ -72,7 +72,7 @@ analysisServer <- function(id, data_obj){
       slope_thresh <- if (isTRUE(input$show_saturation_advanced)) {
         input$slope_threshold
       } else {
-        0.005
+        0.05
       }
       
       metric_pct <- if (isTRUE(input$show_saturation_advanced)) {

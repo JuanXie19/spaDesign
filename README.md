@@ -74,3 +74,9 @@ saturation_point <- saturationDetection(res)
 plotSaturation(saturation_point)
 ```
 ## Vignette
+
+See the package vignette for a complete workflow, including the Shiny interface:
+
+```r
+vignette("spaDesign", package = "spaDesign")
+```

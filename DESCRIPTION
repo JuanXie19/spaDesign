@@ -43,4 +43,5 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown
+VignetteBuilder: knitr
 SystemRequirements: Xcode Command Line Tools, gfortran

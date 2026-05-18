@@ -1,0 +1,397 @@
+---
+title: "Experimental design for sequencing-based spatial transcriptomics with spaDesign"
+author: "Juan Xie"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Experimental design for sequencing-based spatial transcriptomics with spaDesign}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+options(rgl.useNULL = TRUE)
+
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  eval = FALSE
+)
+```
+
+## Overview
+
+`spaDesign` is a simulation-based framework for experimental design in
+sequencing-based spatial transcriptomics studies. The package is designed to
+help answer a practical question before committing to a full experiment:
+
+> How much sequencing depth is enough to recover the spatial domains of interest?
+
+Starting from a pilot spatial transcriptomics dataset, `spaDesign` learns
+domain-specific expression and spatial patterns, simulates new datasets under
+candidate sequencing depths and signal strengths, evaluates domain recovery, and
+detects the sequencing depth at which additional reads provide diminishing
+returns.
+
+The typical workflow is:
+
+1. Create a `spaDesign` object from a count matrix and spatial metadata.
+2. Select domain-informative genes.
+3. Estimate the spatial distribution and spatial expression models.
+4. Simulate data across sequencing depth and perturbation settings.
+5. Evaluate domain recovery with normalized mutual information (NMI).
+6. Detect and visualize the saturation sequencing depth.
+
+## Installation and setup
+
+Install the development version from GitHub:
+
+```{r install}
+if (!requireNamespace("devtools", quietly = TRUE)) {
+  install.packages("devtools")
+}
+
+devtools::install_github("JuanXie19/spaDesign")
+```
+
+Load the package:
+
+```{r setup, eval=TRUE, message=FALSE, warning=FALSE}
+suppressWarnings(suppressPackageStartupMessages(library(spaDesign)))
+```
+
+## Input data
+
+The core input is a gene-by-spot count matrix and a spot-level metadata table.
+The metadata must contain at least three columns:
+
+- `x`: spatial x coordinate
+- `y`: spatial y coordinate
+- `domain`: known or estimated spatial domain label
+
+The column names of the count matrix must match the row names of the metadata.
+
+```{r input-format}
+dim(count_matrix)
+head(loc)
+
+all(colnames(count_matrix) == rownames(loc))
+```
+
+`spaDesign` also ships example/reference data under `inst/extdata`. A small
+example object can be loaded as follows:
+
+```{r example-data, eval=TRUE}
+example_path <- system.file("extdata", "exampleData.rds", package = "spaDesign")
+example_data <- readRDS(example_path)
+
+count_matrix <- example_data$count
+loc <- example_data$loc
+
+dim(count_matrix)
+head(loc)
+```
+
+## Create a spaDesign object
+
+Use `createDesignObject()` to initialize the S4 object used throughout the
+analysis.
+
+```{r create-object, eval=TRUE}
+DATA <- createDesignObject(
+  count_matrix = count_matrix,
+  loc = loc
+)
+
+DATA
+```
+
+The object stores the reference count matrix, spot metadata, simulated data,
+model parameters, selected genes, and downstream evaluation metrics. We can access them via the *@* operator 
+```{r accessors, eval=TRUE}
+dim(DATA@refCounts)
+head(DATA@refcolData)
+```
+
+## Select domain-informative genes
+
+`featureSelection()` identifies genes informative for each spatial domain. These
+genes are used to estimate and simulate domain-specific expression patterns.
+
+```{r feature-selection, eval = TRUE}
+DATA <- featureSelection(
+  spaDesign = DATA,
+  logfc_cutoff = 0.7,
+  mean_in_cutoff = 1.8,
+  max_num_gene = 10,
+  n_cores = 4
+)
+
+lapply(topGenes(DATA), head)
+```
+
+The thresholds could be tuned. A stricter `logfc_cutoff`
+selects genes with stronger domain contrast, while a higher `mean_in_cutoff`
+filters genes that are weakly expressed inside the domain.
+
+## Estimate model parameters
+
+`spaDesign` estimates two complementary parts of the spatial transcriptomics
+signal:
+
+- `estimation_FGEM()` learns domain location spatial distribution patterns.
+- `estimation_NNGP()` learns spatial expression patterns for selected genes.
+
+```{r parameter-estimation}
+DATA <- estimation_FGEM(
+  spaDesign = DATA,
+  iter_max = 1000,
+  M_candidates = 2:6,
+  tol = 0.1,
+  n_cores = 4,
+  verbose = FALSE
+)
+
+DATA <- estimation_NNGP(
+  spaDesign = DATA,
+  n_neighbors = 10,
+  order = "AMMD",
+  X = NULL,
+  verbose = FALSE
+)
+```
+
+After this step, the object contains the fitted parameters needed for
+simulation.
+
+
+The fitted object contains selected genes and model parameters.
+
+```{r load-fitted-example, include=FALSE, eval=TRUE}
+DATA <- readRDS(system.file("extdata", "ref_humanBrain.rds", package = "spaDesign"))
+```
+
+Specifically, the estimated NNGP parameters are stored by domain and gene. For example,
+`Layer1` and gene `FTH1` contain an estimated regression coefficient:
+
+```{r show-nngp-output, echo=FALSE, eval=TRUE}
+DATA@paramsGP$Layer1$FTH1$Beta
+```
+
+The estimated FGEM parameters are stored by domain. For example, the mixing
+proportions from the AIC-selected model for `Layer1` are:
+
+```{r show-fgem-output, echo=FALSE, eval=TRUE}
+DATA@paramsFG$Layer1$best_model_AIC$pi
+```
+
+## Power analysis over sequencing depth and effect size
+
+`powerAnalysisEffectSize()` simulates datasets over a grid of sequencing depth
+scaling factors and effect size scaling factors. Domain recovery is evaluated by
+NMI after clustering the simulated data.
+
+```{r effect-size-power}
+effect_results <- powerAnalysisEffectSize(
+  spaDesign = DATA,
+  es_range = c(0.5, 1, 2),
+  seq_depth_range = c(0.5, 1, 2, 3, 5, 7, 10),
+  n_rep = 3,
+  n_cores = 4
+)
+
+head(effect_results)
+```
+
+
+```{r effect-size-power-values, eval=TRUE, include=FALSE}
+effect_results <- data.frame(
+  seq_depth = c(0.5, 1, 2, 3, 5, 7),
+  effect_size = c(1, 1, 1, 1, 1, 1),
+  total_counts = c(640829, 1282539, 2566330, 3848292, 6411184, 8973274),
+  NMI = c(0.42, 0.61, 0.74, 0.80, 0.84, 0.85)
+)
+```
+
+```{r effect-size-power-output, echo=FALSE, eval=TRUE}
+head(effect_results)
+```
+The output contains one row per simulation replicate and scenario:
+
+- `seq_depth`: relative sequencing depth compared with the pilot dataset
+- `effect_size`: signal scaling factor
+- `total_counts`: total counts in the simulated dataset
+- `NMI`: agreement between inferred and true domain labels
+
+If the pilot experiment has an observed depth in millions of reads or UMIs, the
+relative scale can be converted to an absolute scale:
+
+```{r absolute-depth}
+pilot_depth <- sum(refCounts(DATA)) / 1e6
+effect_results$absolute_depth <- effect_results$seq_depth * pilot_depth
+```
+
+## Power analysis under spatial perturbation
+
+Spatial perturbation analysis evaluates robustness when a fraction of genes
+deviate from the undisturbed spatial pattern.
+
+```{r spatial-power}
+spatial_results <- powerAnalysisSpatial(
+  spaDesign = DATA,
+  SIGMA = 1,
+  prop_range = c(0.6, 0.8, 1.0),
+  seq_depth_range = c(0.5, 1, 2, 3, 5, 7, 10),
+  n_rep = 5,
+  n_cores = 4
+)
+
+head(spatial_results)
+```
+
+Here, `prop_range` controls the proportion of genes that retain the original
+spatial pattern, and `SIGMA` controls the spatial noise level.
+
+## Detect sequencing depth saturation
+
+The saturation point is estimated by fitting a monotone smooth curve between
+sequencing depth and NMI. The detected saturation depth is the first point where
+the fitted curve has sufficiently small marginal improvement after reaching a
+specified fraction of its maximum performance.
+
+```{r saturation-effect,eval = T}
+sat_effect <- saturationDetection(
+  data = effect_results,
+  metric_col = "NMI",
+  depth_col = "seq_depth",
+  group_cols = "effect_size",
+  pilot_depth = NULL,
+  slope_threshold = 0.05,
+  required_metric_percentage = 0.8,
+  aggregate_reps = TRUE
+)
+
+sat_effect$summary
+```
+
+Important tuning parameters:
+
+- `slope_threshold`: lower values require a flatter curve before declaring
+  saturation.
+- `required_metric_percentage`: higher values require the curve to get closer
+  to its maximum before saturation is considered.
+- `aggregate_reps`: when `TRUE`, replicate results at the same sequencing depth
+  are averaged before curve fitting.
+
+Visualize the fitted curves and detected saturation depths:
+
+```{r plot-saturation, eval = T}
+plotSaturation(
+  sat_effect,
+  metric_col = "NMI",
+  use_absolute = TRUE,
+  facet = TRUE,
+  label_saturation = TRUE
+)
+```
+
+## Interactive Shiny workflow
+
+The package includes a Shiny application with two main steps:
+
+1. Data preparation: choose a built-in reference dataset or upload SpaceRanger
+   output files.
+2. Sequencing depth estimation: run baseline, effect-size, or spatial
+   perturbation simulations and visualize the saturation curve.
+
+Launch the app from an installed package:
+
+```{r shiny-app}
+library(spaDesign)
+
+runSpaDesignApp()
+```
+
+For uploaded data, the app expects:
+
+- `filtered_feature_bc_matrix.h5`
+- `tissue_positions_list.csv`
+- optional annotation CSV with `barcode` and `domain` columns
+
+If no annotation file is provided, the app estimates spatial domains from the
+uploaded count matrix.
+
+## A minimal end-to-end template
+
+The following template summarizes the full analysis:
+
+```{r full-template}
+library(spaDesign)
+
+example_data <- readRDS(system.file("extdata", "exampleData.rds", package = "spaDesign"))
+
+DATA <- createDesignObject(
+  count_matrix = example_data$count,
+  loc = example_data$loc
+)
+
+DATA <- featureSelection(
+  DATA,
+  logfc_cutoff = 0.7,
+  mean_in_cutoff = 1.8,
+  max_num_gene = 10,
+  n_cores = 4
+)
+
+DATA <- estimation_FGEM(
+  DATA,
+  iter_max = 1000,
+  M_candidates = 2:6,
+  tol = 0.1,
+  n_cores = 4,
+  verbose = FALSE
+)
+
+DATA <- estimation_NNGP(
+  DATA,
+  n_neighbors = 10,
+  order = "AMMD",
+  X = NULL,
+  verbose = FALSE
+)
+
+rst <- powerAnalysisEffectSize(
+  DATA,
+  es_range = c(1, 2),
+  seq_depth_range = c(0.5, 1, 2, 3, 5, 7, 10),
+  n_rep = 5,
+  n_cores = 4
+)
+
+pilot_depth <- sum(refCounts(DATA)) / 1e6
+
+sat <- saturationDetection(
+  rst,
+  group_cols = "effect_size",
+  pilot_depth = pilot_depth,
+  aggregate_reps = TRUE
+)
+
+sat$summary
+plotSaturation(sat)
+```
+
+## Practical recommendations
+
+Use a pilot dataset that is representative of the tissue, chemistry, and
+expected domain structure of the planned study. The saturation depth estimated
+by `spaDesign` is conditional on this pilot signal.
+
+Start with a modest grid such as `seq_depth_range = c(0.5, 1, 2, 3, 5, 7, 10)`
+and increase `n_rep` after confirming that the pipeline runs successfully.
+
+When comparing multiple experimental conditions, interpret the recommended
+depth alongside the achieved NMI. A low saturation depth with a low maximum NMI
+may indicate that sequencing depth is not the main limiting factor.

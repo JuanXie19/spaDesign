@@ -11,10 +11,9 @@ reference_data_paths <- NULL
   
   # Store file paths inside the package namespace
   reference_data_paths <<- list(
-    "Chicken Heart" = system.file("extdata/ref_chicken_heart.rds", package = pkgname),
-    "Human Brain"   = system.file("extdata/ref_human_brain.rds", package = pkgname)
+    "Chicken Heart" = system.file("extdata/ref_chickenHeart.rds", package = pkgname),
+    "Human Brain"   = system.file("extdata/ref_humanBrain.rds", package = pkgname)
   )
 }
-
 
 
