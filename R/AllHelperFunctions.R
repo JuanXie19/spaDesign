@@ -80,6 +80,7 @@ setMethod("topGenes", "spaDesign", function(x) x@topGenes)
 
 #' Show method for spaDesign objects
 #' @param object A \code{spaDesign} object
+#' @importFrom methods setMethod show
 #' @export
 setMethod(
   f = 'show',
@@ -120,5 +121,3 @@ setMethod(
     }
   }
 )
-
-
