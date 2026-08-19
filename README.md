@@ -80,3 +80,5 @@ See the package vignette for a complete workflow, including the Shiny interface:
 ```r
 vignette("spaDesign", package = "spaDesign")
 ```
+=======
+[spaDesign vignette](https://htmlpreview.github.io/?https://github.com/JuanXie19/package-vignettes/blob/main/spaDesign.html)
