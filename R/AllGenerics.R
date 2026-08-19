@@ -30,6 +30,7 @@
 #' topGenes(sd)
 #' }
 #' @name spaDesign-accessors
+#' @importFrom methods setGeneric
 NULL
 
 
