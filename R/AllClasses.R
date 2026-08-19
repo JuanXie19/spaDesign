@@ -1,3 +1,5 @@
+setClassUnion(name = 'OptionalList', members = c('NULL', 'list'))
+setClassUnion(name = 'OptionalCharacter', members = c('NULL', 'character'))
 #' @title Class \code{spaDesign}
 #' 
 #' @description 
@@ -45,8 +47,6 @@
 #' @importFrom methods setClassUnion setClass
 #' @importFrom Matrix Matrix
 #' @export
-setClassUnion(name = 'OptionalList', members = c('NULL', 'list'))
-setClassUnion(name = 'OptionalCharacter', members = c('NULL', 'character'))
 
 setClass('spaDesign',
     slots = list(
@@ -63,5 +63,3 @@ setClass('spaDesign',
 		    topGenes = 'OptionalList',
         NMI = 'ANY'
     ))
-
-
