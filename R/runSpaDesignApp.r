@@ -4,9 +4,11 @@
 #' supports built-in reference datasets and user-uploaded SpaceRanger output.
 #'
 #' @param ... Additional arguments passed to \code{shiny::runApp()}.
+#'
 #' @import plotly
 #' @import shiny
 #' @import shinyBS
+#'
 #' @return This function is called for its side effect of launching a Shiny app.
 #' @export
 #'

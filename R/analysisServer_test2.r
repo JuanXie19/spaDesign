@@ -1,16 +1,16 @@
 #' Analysis Server Module
-#' @importFrom DT datatable renderDT
-#' @importFrom dplyr %>% arrange bind_rows group_by mutate n rename select summarise
-#' @importFrom ggplot2 aes geom_errorbar geom_line geom_point geom_text geom_vline ggplot labs theme_minimal ylim
-#' @importFrom plotly ggplotly renderPlotly
-#' @importFrom shiny downloadHandler moduleServer need observeEvent reactive reactiveVal req validate withProgress
-#' @importFrom stats sd
-#' @importFrom utils write.csv
+#'
 #'
 #' Server logic for simulation and analysis tab.
 #'
 #' @param id Module namespace.
 #' @param data_obj A reactive returning the processed data.
+#'
+#' @importFrom DT datatable renderDT
+#' @importFrom dplyr %>% arrange bind_rows group_by mutate n rename select summarise
+#' @importFrom ggplot2 aes geom_errorbar geom_line geom_point geom_text geom_vline ggplot labs theme_minimal ylim
+#' @importFrom plotly ggplotly renderPlotly
+#' @importFrom shiny downloadHandler moduleServer need observeEvent reactive reactiveVal req validate withProgress
 #' @return Reactive simulation results.
 #' @noRd
 

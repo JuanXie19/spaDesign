@@ -100,7 +100,9 @@ compute_y_expect <- function(x, M, phi, tau, c, r, sigma_sq) {
 
 
 # Function to calculate the incomplete log-likelihood
+#'
 #' @importFrom matrixStats logSumExp
+#'
 ### logSumExp calculate the log of the sum of exponentials
 ## eg., originally, we calculate pi_1*FG1, pi_2*FG2, etc, then we calculate log(pi_1*FG1 + pi_2*FG2)
 ## now we calculate t1= log(pi_1*FG1), t2= log(pi_2*FG2), etc, then logSumExp(t1, t2), which is log(exp(t1)+ exp(t2))

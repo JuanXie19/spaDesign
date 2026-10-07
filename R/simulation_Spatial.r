@@ -47,10 +47,10 @@
 #'     \item{simcolData}{Data frame of spot metadata, copied from \code{refcolData(spaDesign)}}
 #'   }
 #'
-#' @import pdist
-#' @import clue
-#' @import RANN
-#' @import dplyr
+#' @importFrom pdist pdist
+#' @importFrom clue solve_LSAP
+#' @importFrom RANN nn2
+#' @import dplyr 
 #' @import pbapply
 #' @import future.apply
 #' @importFrom igraph norm_coords

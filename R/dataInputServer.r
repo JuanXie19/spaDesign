@@ -1,4 +1,5 @@
 #' Internal dependency declarations
+#'
 #' @importFrom Seurat AggregateExpression CreateSeuratObject FindClusters FindNeighbors FindVariableFeatures Idents NormalizeData Read10X_h5 RunPCA ScaleData
 #' @importFrom SeuratObject DefaultAssay
 #' @importFrom data.table fread
@@ -6,6 +7,7 @@
 #' @importFrom graphics plot.new text
 #' @importFrom shiny eventReactive moduleServer outputOptions reactive renderPlot renderPrint req showNotification updateSelectInput withProgress
 #' @importFrom stats cutree dist hclust
+#'
 #' @noRd
 
 

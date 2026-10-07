@@ -34,6 +34,7 @@
 #' }
 #' 
 #' @name spaDesign-accessors
+#'
 NULL
 
 

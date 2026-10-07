@@ -8,7 +8,8 @@
 #' @param loc A \code{data.frame} containing the spatial coordinates and domain information for spots, 
 #'            Required columns: 'x', 'y', and 'domain'.
 #'          
-#' @return A \code{spaDesign} object 
+#' @return A \code{spaDesign} object
+#' 
 #' @importFrom methods new validObject
 #' @export
 #' 

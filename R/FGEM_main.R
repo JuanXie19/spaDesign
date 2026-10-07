@@ -1,12 +1,15 @@
 
 #' EM algorithm for simplified Fisher-Gaussian model
-#' @imporFrom stats kmeans median rmultinom
+
 #' Fits a Fisher-Gaussian mixture model to spatial coordinates using the EM algorithm.
 #'
 #' @param x Numeric matrix of coordinates (rows = observation, cols = dimensions)
 #' @param M Number of mixture components(clusters) (default: 5)
 #' @param iter_max Maximum number of EM iterations (default: 1000)
 #' @param tol Convergence tolerance for change in log-likelihood (default: 1e-1)
+#'
+#' @importFrom stats kmeans median rmultinom
+#'
 #' @return A list containing estimated parameters:
 #'   \item{pi}{Mixture weights}
 #'   \item{c}{Cluster centers}

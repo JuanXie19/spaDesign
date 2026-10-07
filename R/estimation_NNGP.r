@@ -21,9 +21,9 @@
 #' @return Updated \code{spaDesign} object with \code{paramsGP} slot populated. 
 #'   This is a nested list: \code{paramsGP[[domain]][[gene]]} contains the BRISC fit object.
 #' 
-#' @import igraph
+#' @importFrom igraph norm_coords
 #' @import dplyr
-#' @import BRISC
+#' @importFrom BRISC BRISC_estimation BRISC_neighbor BRISC_order 
 #' @import Matrix
 #' @export
 #' 

@@ -43,6 +43,8 @@ setClassUnion(name = 'OptionalCharacter', members = c('NULL', 'character'))
 #' 
 #' @return A \code{spaDesign} object.
 #' 
+#' @importFrom methods setClass setClassUnion
+#'
 #' @export
 
 setClass('spaDesign',

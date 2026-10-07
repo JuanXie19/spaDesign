@@ -31,8 +31,8 @@
 #'     \item \code{simcolData}: spot metadata copied from \code{refcolData(spaDesign)}
 #'   }
 #'
-#' @import igraph
-#' @import BRISC
+#' @importFrom igraph norm_coords
+#' @importFrom BRISC BRISC_prediction
 #' @importFrom stats median rpois
 #' @export
 #'

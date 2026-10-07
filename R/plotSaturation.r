@@ -25,8 +25,8 @@
 #'
 #' @return A \code{ggplot2} object.
 #'
-#' @import ggplot2
-#' @import ggrepel
+#' @import ggplot2 aes coord_cartesian facet_wrap geom_line geom_point geom_vline ggplot guide_legend guides labs theme_classic
+#' @import ggrepel geom_text_repel
 #' @import rlang
 #' @import dplyr
 #' @export

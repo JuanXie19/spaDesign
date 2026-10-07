@@ -1,13 +1,14 @@
 ##
 #' Analysis UI Module
+#'
+#' UI for simulation and analysis tab. Allows effect size and spatial perturbation simulations.
+#'
+#' @param id Module namespace.
 #' @importFrom DT DTOutput
 #' @importFrom plotly plotlyOutput
 #' @importFrom shiny NS actionButton br checkboxInput conditionalPanel downloadButton hr mainPanel radioButtons sidebarLayout sidebarPanel sliderInput tags
 #' @importFrom shinyBS bsTooltip
 #'
-#' UI for simulation and analysis tab. Allows effect size and spatial perturbation simulations.
-#'
-#' @param id Module namespace.
 #' @return Shiny UI element.
 #' @noRd
 
