@@ -1,7 +1,3 @@
-library(movMF)
-library(matrixStats)
-library(Directional)
-
 
 #' @keywords internal
 # L2 norm function
@@ -129,7 +125,7 @@ log_likelihood <- function(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq) 
       
       log_lik[i, k] <- log(pi_hat[k]) + log(fg_value)
     }
-    temp[i] <- logSumExp(log_lik[i, ])  # Use logSumExp for numerical stability
+    temp[i] <- matrixStats::logSumExp(log_lik[i, ])  # Use logSumExp for numerical stability
     
   }
   

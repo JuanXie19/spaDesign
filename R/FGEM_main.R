@@ -370,8 +370,6 @@ select_best_M <- function(x, M_candidates = 2:5, iter_max = 1000, tol = 1e-1) {
 
 
 ## Given the FG-mixture results and a number N, this function generates N samples from estimated density
-#' @import movMF
-#' @import mvtnorm
 #' @import matrixStats
 #' @import Directional
 #' @import MASS
