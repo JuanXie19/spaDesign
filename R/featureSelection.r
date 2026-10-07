@@ -25,6 +25,7 @@
 
 #' @import dplyr
 #' @importFrom parallel mclapply
+#' @importFrom stats median
 #' @export
 #'
 #' @examples

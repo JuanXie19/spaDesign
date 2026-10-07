@@ -43,9 +43,6 @@ setClassUnion(name = 'OptionalCharacter', members = c('NULL', 'character'))
 #' 
 #' @return A \code{spaDesign} object.
 #' 
-#' @importFrom S4Vectors DataFrame
-#' @importFrom methods setClassUnion setClass
-#' @importFrom Matrix Matrix
 #' @export
 
 setClass('spaDesign',

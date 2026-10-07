@@ -44,6 +44,8 @@
 #'   }
 #'
 #' @importFrom scam scam
+#' @importFrom rlang .data
+#' @importFrom stats as.formula predict
 #' @importFrom dplyr arrange mutate filter bind_rows group_by summarise
 #' @export
 #'

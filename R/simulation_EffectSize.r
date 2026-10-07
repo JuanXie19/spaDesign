@@ -32,6 +32,8 @@
 #'   }
 #'
 #' @import igraph
+#' @import BRISC
+#' @importFrom stats median rpois
 #' @export
 #'
 #' @examples
@@ -148,11 +150,6 @@ simulation_EffectSize <- function(spaDesign, seq_depth_factor, effect_size_facto
 #' @return A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, 
 #'   and updated \code{simcolData} with spot metadata.
 #'
-#'
-#'
-#'
-#'
-
 #' Simulate Spatial Counts with Scaled Sequencing Depth and Effect Size (Refactored)
 #'
 #' A refactored version of \code{\link{simulation_EffectSize}} with reduced memory usage.

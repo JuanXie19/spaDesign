@@ -26,6 +26,9 @@
 #' @return A \code{ggplot2} object.
 #'
 #' @import ggplot2
+#' @import ggrepel
+#' @import rlang
+#' @import dplyr
 #' @export
 #'
 #' @examples

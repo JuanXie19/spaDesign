@@ -25,12 +25,7 @@
 #'
 #' @importFrom igraph norm_coords
 #' @import dplyr
-#' @import invgamma
 #' @import parallel
-#' @import MASS
-#' @import movMF
-#' @import Rfast
-#' @import truncnorm
 #' @export
 #' @examples
 #' \dontrun{

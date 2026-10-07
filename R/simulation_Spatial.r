@@ -50,16 +50,12 @@
 #' @import pdist
 #' @import clue
 #' @import RANN
-#' @import invgamma
-#' @import Rfast
-#' @import movMF
-#' @import MASS
 #' @import dplyr
 #' @import pbapply
-#' @import pbmcapply
 #' @import future.apply
 #' @importFrom igraph norm_coords
 #' @importFrom parallel mclapply
+#' @importFrom stats dist rpois
 #' 
 #' @export
 #'

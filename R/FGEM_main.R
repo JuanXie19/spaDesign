@@ -1,6 +1,6 @@
 
 #' EM algorithm for simplified Fisher-Gaussian model
-#'
+#' @imporFrom stats kmeans median rmultinom
 #' Fits a Fisher-Gaussian mixture model to spatial coordinates using the EM algorithm.
 #'
 #' @param x Numeric matrix of coordinates (rows = observation, cols = dimensions)
@@ -370,7 +370,6 @@ select_best_M <- function(x, M_candidates = 2:5, iter_max = 1000, tol = 1e-1) {
 
 
 ## Given the FG-mixture results and a number N, this function generates N samples from estimated density
-#' @import matrixStats
 #' @import Directional
 #' @import MASS
 #' @noRd

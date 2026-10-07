@@ -2,8 +2,9 @@
 #'
 #' UI for the data input tab. Allows users to choose reference data or upload their own SpaceRanger output.
 #'
+#' @importFrom parallel detectCores
+#' @importFrom shiny NS actionButton checkboxInput conditionalPanel fileInput h4 h5 helpText hr mainPanel numericInput plotOutput radioButtons selectInput sidebarLayout sidebarPanel sliderInput verbatimTextOutput
 #' @param id A character string specifying the Shiny module namespace.
-#'
 #' @return A Shiny UI element (sidebarLayout) for data input.
 #' @export
 dataInputUI <- function(id) {
