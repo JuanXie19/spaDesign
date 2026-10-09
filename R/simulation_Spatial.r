@@ -277,16 +277,22 @@ combine_in_out <- function(COORDS.IN, COORDS.OUT, y.post, y.out, counts){
 #' @return Matrix of simulated counts for all genes in the domain, with appropriate row and column names.
 #' @noRd
 process_count <- function(GENE.COUNT, counts, domain, GP.par){
-  if (any(sapply(GENE.COUNT, is.null)) == 'FALSE') {
-    GENE.COUNT <- Reduce('rbind', GENE.COUNT)     
-    rownames(GENE.COUNT) <- paste0(domain, "-", names(GP.par))
-  } else {
-    null.idx <- which(sapply(GENE.COUNT, is.null) == 'TRUE')
-    GENE.COUNT <- Reduce('rbind', GENE.COUNT)
-    rownames(GENE.COUNT) <- paste0(domain, "-", names(GP.par)[-null.idx])
+  if (length(GENE.COUNT) != length(GP.par)) {
+    stop("GENE.COUNT and GP.par must have the same length.")
   }
-  colnames(GENE.COUNT) <- colnames(counts)
-  return(GENE.COUNT)
+
+  keep <- !vapply(GENE.COUNT, is.null, logical(1))
+
+  if (!any(keep)) {
+    stop("No genes were successfully simulated for domain: ", domain)
+  }
+
+  result <- do.call(rbind, GENE.COUNT[keep])
+
+  rownames(result) <- paste0(domain, "-", names(GP.par)[keep])
+  colnames(result) <- colnames(counts)
+
+  return(result)
 }
  
 #' Simulate expression counts for a set of domain-informative genes without modifying their spatial patterns.
