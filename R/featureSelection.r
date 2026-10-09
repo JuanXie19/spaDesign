@@ -24,7 +24,8 @@
 #'   fold change statistics.
 
 #' @import dplyr
-#' @importFrom parallel mclapply
+#' @importFrom future plan
+#' @importFrom future.apply future_lapply
 #' @importFrom stats median
 #' @export
 #'
@@ -48,6 +49,10 @@
 
 featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene, n_cores){
 	
+	# Use the requested worker count and restore the caller's plan on exit.
+	.spa_previous_plan <- .spa_multisession_plan(n_cores)
+	on.exit(future::plan(.spa_previous_plan), add = TRUE)
+
     if (!is.numeric(logfc_cutoff) || logfc_cutoff <= 0) stop("'logfc_cutoff' must be a positive numeric value.")
     if (!is.numeric(mean_in_cutoff) || mean_in_cutoff <= 0) stop("'mean_in_cutoff' must be a positive numeric value.")
 
@@ -57,7 +62,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 	
 	FC_list <- geneSummary(count_matrix, loc_file, n_cores)
 	
-	top_genes <- parallel::mclapply(FC_list, function(DF) {
+	top_genes <- future.apply::future_lapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 
@@ -78,7 +83,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
         }
         message("Completed gene selection")
         return(selected_genes)
-    }, mc.cores = n_cores)
+    }, future.seed = TRUE)
     names(top_genes) <- names(FC_list)
 	  spaDesign@topGenes <- top_genes
 	  message("Completed gene selection for all domains.")
@@ -146,11 +151,16 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #'} 
 geneSummary <- function(count_matrix, loc, n_cores){
 	
+	# Use the requested worker count and restore the caller's plan on exit.
+	.spa_previous_plan <- .spa_multisession_plan(n_cores)
+	on.exit(future::plan(.spa_previous_plan), add = TRUE)
+
+	
 	count_matrix <- as.matrix(count_matrix)
 	domains <- sort(unique(loc$domain))
 	log_count <- log(count_matrix + 1)
 	
-	fc_results <- parallel::mclapply(domains, function(domain) {
+	fc_results <- future.apply::future_lapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
         rst <- sapply(seq_len(nrow(log_count)), function(gene) {
             spot_idx <- which(loc$domain == domain)
@@ -172,7 +182,7 @@ geneSummary <- function(count_matrix, loc, n_cores){
         colnames(rst) <- c("logFC", "logFC_low", "mean_in", "mean_out", "mean_out_low")
         message("Completed fold change calculation for domain: ", domain)
         rst
-    }, mc.cores = n_cores)
+    }, future.seed = TRUE)
     names(fc_results) <- domains
     message("Completed fold change calculations for all domains")
     return(fc_results)

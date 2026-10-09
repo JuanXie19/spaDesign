@@ -8,8 +8,7 @@
 #' @param iter_max Maximum number of EM iterations (default = 1000)
 #' @param M_candidates Integer vector of candidate mixture sizes to try (default = 2:5)
 #' @param tol Positive convergence tolerance for EM algorithm (default = 1e-1)
-#' @param n_cores Number of CPU cores for parallization (default = 1). Uses \code{pbmclapply}; 
-#' on windows this is treated as sequential.
+#' @param n_cores Number of CPU cores for parallization (default = 1). Uses multisession workers on Windows, macOS, and Linux.
 #' @param verbose Logical; if \code{TRUE}, print progress messages (default = TRUE).
 #' 
 #' @return Updated \code{spaDesign} object with Fisher-Gaussian parameter estimates and M list:
@@ -25,7 +24,7 @@
 #'
 #' @importFrom igraph norm_coords
 #' @import dplyr
-#' @import parallel
+#' @import future.apply
 #' @export
 #' @examples
 #' \dontrun{
@@ -44,6 +43,10 @@ estimation_FGEM <- function(spaDesign,
                             tol = 1e-1, 
                             n_cores = 4, 
                             verbose = FALSE){
+  
+  # Use the requested worker count and restore the caller's plan on exit.
+  .spa_previous_plan <- .spa_multisession_plan(n_cores)
+  on.exit(future::plan(.spa_previous_plan), add = TRUE)
 
   # input validation
 	if (!is.numeric(iter_max) || iter_max <= 0 || iter_max != round(iter_max)) {
@@ -75,7 +78,7 @@ estimation_FGEM <- function(spaDesign,
   }
   
   # fit models for each domain
-	RST <- parallel::mclapply(seq_along(DOMAIN), function(d){
+	RST <- future.apply::future_lapply(seq_along(DOMAIN), function(d){
 		          coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
 		          
 		          FIT <- tryCatch({
@@ -90,7 +93,7 @@ estimation_FGEM <- function(spaDesign,
 		              return(NULL)
 		              })
 		          return(FIT)	
-	}, mc.cores = n_cores)
+	}, future.seed = TRUE)
 	
 	if (verbose){
   message('Completed fitting Fisher-Gaussian mixture models for all domains')

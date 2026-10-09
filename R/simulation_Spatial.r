@@ -52,9 +52,9 @@
 #' @importFrom RANN nn2
 #' @import dplyr 
 #' @import pbapply
+#' @importFrom future plan
 #' @import future.apply
 #' @importFrom igraph norm_coords
-#' @importFrom parallel mclapply
 #' @importFrom stats dist rpois
 #' 
 #' @export
@@ -79,6 +79,10 @@
 
 
 simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores){
+  
+  # Use the requested worker count and restore the caller's plan on exit.
+  .spa_previous_plan <- .spa_multisession_plan(n_cores)
+  on.exit(future::plan(.spa_previous_plan), add = TRUE)
   
   if (is.null(selected_M_list)) {
     if (!is.null(spaDesign@selected_M_list_BIC)) {
@@ -147,13 +151,13 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
   ## simulate count matrix where the spots location are disturbed
   message('Simulating count matrix for disturbed spots location...')
   
-  worse_count <- mclapply(seq_along(par_GP), function(d){
+  worse_count <- future.apply::future_lapply(seq_along(par_GP), function(d){
     domain <- names(par_GP)[d]
     GP.par <- par_GP[[d]]
     FG.par <- FG_selected_model[[d]]
     
     simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
-  }, mc.cores = n_cores, mc.preschedule = FALSE)
+  }, future.seed = TRUE)
   # Check for errors
   if (any(sapply(worse_count, inherits, "try-error"))) {
     stop("Error in parallel processing of worse_count. Try reducing n_cores or check error messages.")

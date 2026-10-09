@@ -19,7 +19,8 @@
 #'   \item{NMI}{Normalized Mutual Information from power evaluation.}
 #' }
 #' 
-#' @importFrom parallel mclapply
+#' @importFrom future.apply future_lapply
+#' @importFrom future plan
 #' @export
 #' 
 #' @examples
@@ -32,6 +33,10 @@
 #' }
 
 powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, n_rep, n_cores) {
+
+	# Use the requested worker count and restore the caller's plan on exit.
+	.spa_previous_plan <- .spa_multisession_plan(n_cores)
+	on.exit(future::plan(.spa_previous_plan), add = TRUE)
     
     # Input checks
     stopifnot(is.numeric(prop_range), all(prop_range >= 0), all(prop_range <= 1))
@@ -67,9 +72,9 @@ powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, 
                    NMI = NMI)
     }
   
-    results <- parallel::mclapply(1:nrow(param_grid), function(i){
+    results <- future.apply::future_lapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
-    }, mc.cores = n_cores)
+    }, future.seed = TRUE)
     results <- do.call(rbind, results)
     return(results)
 }

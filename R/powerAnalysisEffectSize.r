@@ -22,7 +22,8 @@
 #'     \item{NMI}{Normalized Mutual Information between predicted and true labels}
 #'   }
 #'
-#' @importFrom parallel mclapply
+#' @importFrom future plan
+#' @importFrom future.apply future_lapply
 #' @export
 #'
 #' @examples
@@ -39,7 +40,12 @@
 
 
 powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range, n_rep, n_cores) {
-    # Input validation
+    
+	# Use the requested worker count and restore the caller's plan on exit.
+	.spa_previous_plan <- .spa_multisession_plan(n_cores)
+	on.exit(future::plan(.spa_previous_plan), add = TRUE)
+
+	# Input validation
     if (!inherits(spaDesign, "spaDesign")) {
       stop("spaDesign must be a spaDesign object")
     }
@@ -90,9 +96,9 @@ powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range, n_rep,
           NMI = rst@NMI)
     }
   
-    results <- mclapply(1:nrow(param_grid), function(i){
+    results <- future.apply::future_lapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
-    }, mc.cores = n_cores)
+    }, future.seed = TRUE)
     
     # Check for errors
     if (any(sapply(results, inherits, "try-error"))) {
