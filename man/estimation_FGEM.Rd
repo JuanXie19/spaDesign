@@ -23,8 +23,7 @@ with columns \code{"x"}, \code{"y"}, and \code{"domain"} (one row per spot).}
 
 \item{tol}{Positive convergence tolerance for EM algorithm (default = 1e-1)}
 
-\item{n_cores}{Number of CPU cores for parallization (default = 1). Uses \code{pbmclapply};
-on windows this is treated as sequential.}
+\item{n_cores}{Number of CPU cores for parallization (default = 1). Uses multisession workers on Windows, macOS, and Linux.}
 
 \item{verbose}{Logical; if \code{TRUE}, print progress messages (default = TRUE).}
 }
