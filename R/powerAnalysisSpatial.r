@@ -57,7 +57,7 @@ powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, 
 
         message(sprintf("Simulating data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
-        DATA <- simulation_Spatial(spaDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores = n_cores)
+        DATA <- simulation_Spatial(spaDesign,selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores = 1)
         
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
