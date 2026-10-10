@@ -11,7 +11,9 @@
 #'         and saturation is detected separately for each level using \code{group_cols}
 #' }
 #'
-#' @param data A data frame containing sequencing depth and metric values.
+#' @param data A data frame containing sequencing depth and performance metric values.
+#'   Each group must contain at least four distinct sequencing depths for fitting the 
+#'   default monotone spline. Replicates at the same depth do not count as distinct depths.
 #' @param metric_col Character string specifying the column name for the performance metric.
 #'   Default is \code{"NMI"}.
 #' @param depth_col Character string specifying the column name for sequencing depth.
@@ -147,13 +149,16 @@ saturationDetection <- function(data,
     k_eff <- min(k_eff, n_obs - 1)  # avoid more coefficients than data
     
     # If still too small, fallback to linear model later
-    if (k_eff < 3) {
+    if (k_eff < 4) {
       return(list(
         saturation_point = NA_real_,
         saturation_metric = NA_real_,
         model = NULL,
         predictions = NULL,
-        warning = "Not enough data to fit SCAM. Consider aggregate_reps=TRUE or more depth points."
+		warning = paste(
+      "Insufficient depth values for the cubic SCAM spline.",
+      "Add more distinct sequencing depths."
+    )
       ))
     }
     
