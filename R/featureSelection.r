@@ -162,22 +162,8 @@ geneSummary <- function(count_matrix, loc, n_cores){
 	
 	fc_results <- future.apply::future_lapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
-        rst <- sapply(seq_len(nrow(log_count)), function(gene) {
-            spot_idx <- which(loc$domain == domain)
-            count_inside <- log_count[gene, spot_idx]
-            count_outside <- log_count[gene, -spot_idx]
-            out_lower <- count_outside[count_outside <= median(count_outside)]
-
-            mean_in <- mean(count_inside)
-            mean_out <- mean(count_outside)
-            mean_out_lower <- mean(out_lower)
-
-            fc <- mean_in - mean_out
-            fc_lower <- mean_in - mean_out_lower
-
-            c(logFC = fc, logFC_low = fc_lower, mean_in = mean_in, mean_out = mean_out, mean_out_lower = mean_out_lower)
-        })
-        rst <- as.data.frame(t(rst))
+        spot_idx <- which(loc$domain == domain)
+		rst <- as.data.frame(spa_gene_cpp(log_count, as.integer(spot_idx)))
         rownames(rst) <- rownames(log_count)
         colnames(rst) <- c("logFC", "logFC_low", "mean_in", "mean_out", "mean_out_low")
         message("Completed fold change calculation for domain: ", domain)
