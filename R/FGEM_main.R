@@ -46,16 +46,17 @@ FG_EM <- function(x, M, iter_max = 500, tol = 1e-1 ){
   ############ EM iterations
   for (iter in 1: iter_max){
     # E-step
-    e_step_rst <- E_step(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq)
+    e_step_rst <- spa_estep_cpp(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq)
     W <- e_step_rst$W
     y_expect_list <- e_step_rst$y_expect_list
     
     ## log-likelihood
-    log_likelihood_vals[iter] <- log_likelihood(x, pi_hat, c_hat, r_hat, phi_hat, tau_hat, sigma_sq)
-    
+    log_likelihood_vals[iter] <- e_step_rst$log_likelihood
+   
     
     # M-step
-    m_step_rst <- M_step(x, W, y_expect_list, c_hat, r_hat, phi_hat, tau_hat)
+    m_step_rst <- spa_mstep_cpp(x, W, y_expect_list, c_hat, r_hat, phi_hat, tau_hat)
+
     pi_hat <- m_step_rst$pi_hat
     c_hat <- m_step_rst$c_hat
     r_hat <- m_step_rst$r_hat
@@ -407,3 +408,7 @@ plot_density_FG_EM <- function(N, rst){
   w <- z + error
   return(list(z,w))
 }
+
+#' @useDynLib spaDesign, .registration = TRUE
+#' @importFrom Rcpp evalCpp
+NULL

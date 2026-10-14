@@ -18,7 +18,9 @@ saturationDetection(
 )
 }
 \arguments{
-\item{data}{A data frame containing sequencing depth and metric values.}
+\item{data}{A data frame containing sequencing depth and performance metric values.
+Each group must contain at least four distinct sequencing depths for fitting the
+default monotone spline. Replicates at the same depth do not count as distinct depths.}
 
 \item{metric_col}{Character string specifying the column name for the performance metric.
 Default is \code{"NMI"}.}

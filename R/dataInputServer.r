@@ -136,7 +136,6 @@ dataInputServer <- function(id, reference_data_paths) {
             all.genes <- rownames(seurat)
             seurat <- Seurat::ScaleData(seurat, features = all.genes)
             seurat <- Seurat::RunPCA(seurat)
-            #seurat <- Seurat::RunUMAP(seurat, dims = 1:30)
             seurat <- Seurat::FindNeighbors(seurat, dims = 1:30)
             seurat <- Seurat::FindClusters(seurat, resolution = 2)
             
