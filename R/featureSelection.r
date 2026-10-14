@@ -16,7 +16,6 @@
 #' @param max_num_gene Integer. Maximum number of genes to select per spatial domain.
 #'   If more genes pass the filters, the top \code{max_num_gene} genes with highest
 #'   absolute logFC are retained.
-#' @param n_cores Integer. Number of CPU cores to use for parallel processing across domains.
 #'
 #'#' @return A \code{spaDesign} object with the \code{topGenes} slot updated.
 #'   The \code{topGenes} slot contains a named list where each element corresponds
@@ -24,8 +23,6 @@
 #'   fold change statistics.
 
 #' @import dplyr
-#' @importFrom future plan
-#' @importFrom future.apply future_lapply
 #' @importFrom stats median
 #' @export
 #'
@@ -36,8 +33,7 @@
 #'   spaDesign = my_spadesign,
 #'   logfc_cutoff = 0.7,      # Require at least 0.7 log FC
 #'   mean_in_cutoff = 2,       # Require mean log-expression >= 2 in domain
-#'   max_num_gene = 50,        # Select maximum 50 genes per domain
-#'   n_cores = 4
+#'   max_num_gene = 50       # Select maximum 50 genes per domain
 #' )
 #'
 #' # Access the selected genes for each domain
@@ -47,12 +43,8 @@
 #' head(top_genes[[1]])
 #' }
 
-featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene, n_cores){
+featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene){
 	
-	# Use the requested worker count and restore the caller's plan on exit.
-	.spa_previous_plan <- .spa_multisession_plan(n_cores)
-	on.exit(future::plan(.spa_previous_plan), add = TRUE)
-
     if (!is.numeric(logfc_cutoff) || logfc_cutoff <= 0) stop("'logfc_cutoff' must be a positive numeric value.")
     if (!is.numeric(mean_in_cutoff) || mean_in_cutoff <= 0) stop("'mean_in_cutoff' must be a positive numeric value.")
 
@@ -60,9 +52,9 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 	count_matrix <- refCounts(spaDesign)
 	loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
 	
-	FC_list <- geneSummary(count_matrix, loc_file, n_cores)
+	FC_list <- geneSummary(count_matrix, loc_file)
 	
-	top_genes <- future.apply::future_lapply(FC_list, function(DF) {
+	top_genes <- lapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 
@@ -83,7 +75,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
         }
         message("Completed gene selection")
         return(selected_genes)
-    }, future.seed = TRUE)
+    })
     names(top_genes) <- names(FC_list)
 	  spaDesign@topGenes <- top_genes
 	  message("Completed gene selection for all domains.")
@@ -106,8 +98,6 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #'     \item{y}{Numeric y-coordinate}
 #'     \item{domain}{Character or factor indicating domain membership for each spot}
 #'   }
-#' @param n_cores Integer. Number of CPU cores to use for parallel processing across domains.
-#'   Default is 4.
 #'
 #' @details
 #' For each domain and each gene, the function calculates:
@@ -134,7 +124,6 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #'   }
 #'   List names correspond to domain identifiers.
 #'
-#' @importFrom pbmcapply pbmclapply
 #' @noRd
 #'
 #' @examples
@@ -142,25 +131,19 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #' # Assuming you have a count matrix and location data
 #' fc_stats <- geneSummary(
 #'   count_matrix = my_counts,
-#'   loc = my_locations,
-#'   n_cores = 4
+#'   loc = my_locations
 #' )
 #'
 #' # View statistics for first domain
 #' head(fc_stats[[1]])
 #'} 
-geneSummary <- function(count_matrix, loc, n_cores){
-	
-	# Use the requested worker count and restore the caller's plan on exit.
-	.spa_previous_plan <- .spa_multisession_plan(n_cores)
-	on.exit(future::plan(.spa_previous_plan), add = TRUE)
-
-	
+geneSummary <- function(count_matrix, loc){
+		
 	count_matrix <- as.matrix(count_matrix)
 	domains <- sort(unique(loc$domain))
 	log_count <- log(count_matrix + 1)
 	
-	fc_results <- future.apply::future_lapply(domains, function(domain) {
+	fc_results <- lapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
         spot_idx <- which(loc$domain == domain)
 		rst <- as.data.frame(spa_gene_cpp(log_count, as.integer(spot_idx)))
@@ -168,7 +151,7 @@ geneSummary <- function(count_matrix, loc, n_cores){
         colnames(rst) <- c("logFC", "logFC_low", "mean_in", "mean_out", "mean_out_low")
         message("Completed fold change calculation for domain: ", domain)
         rst
-    }, future.seed = TRUE)
+    })
     names(fc_results) <- domains
     message("Completed fold change calculations for all domains")
     return(fc_results)

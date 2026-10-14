@@ -4,13 +4,7 @@
 \alias{featureSelection}
 \title{Select Domain-Informative Genes for Each Spatial Domain}
 \usage{
-featureSelection(
-  spaDesign,
-  logfc_cutoff,
-  mean_in_cutoff,
-  max_num_gene,
-  n_cores
-)
+featureSelection(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene)
 }
 \arguments{
 \item{spaDesign}{A \code{spaDesign} object containing:
@@ -27,9 +21,7 @@ required within the domain. Filters out lowly expressed genes.}
 
 \item{max_num_gene}{Integer. Maximum number of genes to select per spatial domain.
 If more genes pass the filters, the top \code{max_num_gene} genes with highest
-absolute logFC are retained.}
-
-\item{n_cores}{Integer. Number of CPU cores to use for parallel processing across domains.
+absolute logFC are retained.
 
 #' @return A \code{spaDesign} object with the \code{topGenes} slot updated.
 The \code{topGenes} slot contains a named list where each element corresponds
@@ -48,8 +40,7 @@ my_spadesign <- featureSelection(
   spaDesign = my_spadesign,
   logfc_cutoff = 0.7,      # Require at least 0.7 log FC
   mean_in_cutoff = 2,       # Require mean log-expression >= 2 in domain
-  max_num_gene = 50,        # Select maximum 50 genes per domain
-  n_cores = 4
+  max_num_gene = 50       # Select maximum 50 genes per domain
 )
 
 # Access the selected genes for each domain
