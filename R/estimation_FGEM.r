@@ -38,10 +38,10 @@
 #' }
 #' 
 estimation_FGEM <- function(spaDesign, 
-                            iter_max = 1000, 
+                            iter_max = 500, 
                             M_candidates = 2:5, 
                             tol = 1e-1, 
-                            n_cores = 4, 
+                            n_cores = 2, 
                             verbose = FALSE){
   
   # Use the requested worker count and restore the caller's plan on exit.
