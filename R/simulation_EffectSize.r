@@ -381,6 +381,7 @@ simulate_genecount_ES_refactored <- function(SEED, coords_norm_sub, coords_norm_
   n2 <- length(all_spot_names) - n1
   
   # calculate lambda_in and lambda_out
+  # A is the expected total count for baseline
   A <- mu1 + n2 * mu.out
   lambda.in <- A * ES_factor * b.condition / (ES_factor * mu1 + n2 * mu.out)
   lambda.out <- mu.out * A / (ES_factor * mu1 + n2 * mu.out)
