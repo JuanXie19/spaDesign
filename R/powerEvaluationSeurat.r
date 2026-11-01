@@ -49,26 +49,26 @@ evaluatePowerSeurat <- function(spaDesign) {
     counts <- simCounts(spaDesign)
     n.cluster <- length(unique(simcolData(spaDesign)$domain))
 	
-	  seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
-	  seurat$true_domain <- simcolData(spaDesign)$domain
+	seurat <- CreateSeuratObject(counts = counts, assay = 'RNA')
+	seurat$true_domain <- simcolData(spaDesign)$domain
 	
-	  seurat <- NormalizeData(seurat)
-	  seurat <- FindVariableFeatures(seurat, selection.method = 'vst')
-	  seurat <- ScaleData(seurat, features = rownames(seurat))
-	  seurat <- RunPCA(seurat, verbose = FALSE)
-	  seurat <- FindNeighbors(seurat, dims = 1:20, verbose = FALSE)
-	  seurat <- FindClusters(seurat, verbose = FALSE,res = 2 )
+	seurat <- NormalizeData(seurat)
+	seurat <- FindVariableFeatures(seurat, selection.method = 'vst')
+	seurat <- ScaleData(seurat, features = rownames(seurat))
+	seurat <- RunPCA(seurat, verbose = FALSE)
+	seurat <- FindNeighbors(seurat, dims = 1:20, verbose = FALSE)
+	seurat <- FindClusters(seurat, verbose = FALSE,res = 2 )
 
-	  X <- Seurat::AggregateExpression(seurat, 
+	X <- Seurat::AggregateExpression(seurat, 
 	                                 assays=SeuratObject::DefaultAssay(seurat),  
 					                          slot= "scale.data", 
 					                          group.by = "seurat_clusters")[[1]] 
 
-	  clust2 <- cutree(hclust(dist(t(X))), k = n.cluster)
-	  new_labels <- clust2
-	  names(new_labels) <- levels(seurat)
-	  seurat <- RenameIdents(seurat,new_labels)
-	  seurat$label_pred <- Idents(seurat)
+	clust2 <- cutree(hclust(dist(t(X))), k = n.cluster)
+	new_labels <- clust2
+	names(new_labels) <- levels(seurat)
+	seurat <- RenameIdents(seurat,new_labels)
+	seurat$label_pred <- Idents(seurat)
 	
     nmi <- aricode::NMI(seurat$true_domain, seurat$label_pred, variant = "sqrt")
     spaDesign@simcolData$label_pred <- seurat$label_pred
