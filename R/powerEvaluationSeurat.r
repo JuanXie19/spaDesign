@@ -59,10 +59,8 @@ evaluatePowerSeurat <- function(spaDesign) {
 	seurat <- FindNeighbors(seurat, dims = 1:20, verbose = FALSE)
 	seurat <- FindClusters(seurat, verbose = FALSE,res = 2 )
 
-	X <- Seurat::AggregateExpression(seurat, 
-	                                 assays=SeuratObject::DefaultAssay(seurat),  
-					                          slot= "scale.data", 
-					                          group.by = "seurat_clusters")[[1]] 
+	X <- Seurat::AverageExpression(seurat, assays=SeuratObject::DefaultAssay(seurat),  
+					                 layer= "scale.data", group.by = "seurat_clusters")[[1]] 
 
 	clust2 <- cutree(hclust(dist(t(X))), k = n.cluster)
 	new_labels <- clust2
