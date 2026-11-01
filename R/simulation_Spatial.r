@@ -30,8 +30,7 @@
 #' \enumerate{
 #'   \item Generate baseline counts for all genes using fitted GP models
 #'   \item Generate perturbed counts using FG-model-based location disturbance
-#'   \item Create final counts by randomly mixing baseline and perturbed patterns,
-#'         with averaging over 1000 random selections
+#'   \item Create final counts by randomly mixing baseline and perturbed patterns
 #' }
 #' 
 #' The FG model parameters are modified as follows:
@@ -42,8 +41,7 @@
 #'
 #' @return A \code{spaDesign} object with updated slots:
 #'   \describe{
-#'     \item{simCounts}{Numeric matrix (genes × spots) of simulated expression counts,
-#'                      averaged over 1000 replications of random gene selection}
+#'     \item{simCounts}{Numeric matrix (genes × spots) of simulated expression counts}
 #'     \item{simcolData}{Data frame of spot metadata, copied from \code{refcolData(spaDesign)}}
 #'   }
 #'
@@ -53,7 +51,7 @@
 #' @import dplyr 
 #' @import pbapply
 #' @importFrom future plan
-#' @import future.apply
+#' @import parallel
 #' @importFrom igraph norm_coords
 #' @importFrom stats dist rpois
 #' 
@@ -79,10 +77,6 @@
 
 
 simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_factor, SIGMA, SEED, prop, n_cores){
-  
-  # Use the requested worker count and restore the caller's plan on exit.
-  .spa_previous_plan <- .spa_multisession_plan(n_cores)
-  on.exit(future::plan(.spa_previous_plan), add = TRUE)
   
   if (is.null(selected_M_list)) {
     if (!is.null(spaDesign@selected_M_list_BIC)) {
@@ -144,20 +138,20 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
     domain <- names(par_GP)[d]
     GP.par <- par_GP[[d]]
     
-    simulate_base_count(SEED, seqDepth_factor, domain, GP.par, count_matrix, coords_norm)        
+    simulate_base_count(SEED + d, seqDepth_factor, domain, GP.par, count_matrix, coords_norm)        
   })
   base_count <- do.call(rbind, base_count)
   
   ## simulate count matrix where the spots location are disturbed
   message('Simulating count matrix for disturbed spots location...')
   
-  worse_count <- future.apply::future_lapply(seq_along(par_GP), function(d){
+  worse_count <- mclapply(seq_along(par_GP), function(d){
     domain <- names(par_GP)[d]
     GP.par <- par_GP[[d]]
     FG.par <- FG_selected_model[[d]]
     
-    simulate_worse_count(SEED, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
-  }, future.seed = TRUE)
+    simulate_worse_count(SEED + d, seqDepth_factor, domain, GP.par, FG.par, count_matrix, coords_norm, SIGMA)
+  }, mc.cores = n_cores)
   # Check for errors
   if (any(sapply(worse_count, inherits, "try-error"))) {
     stop("Error in parallel processing of worse_count. Try reducing n_cores or check error messages.")
@@ -172,11 +166,9 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
     count_combined
   }
   
-  REPEAT <- 1000
-  COUNT.SIM_LIST <- future.apply::future_lapply(seq_len(REPEAT), function(i) {
-    generateCount_fast()
-  }, future.seed = TRUE)
-  COUNT.SIM <- Reduce(`+`, COUNT.SIM_LIST) / REPEAT
+  set.seed(SEED)
+ 
+  COUNT.SIM <- generateCount_fast()
   
   message("Simulation complete.\n")
   spaDesign@simCounts <- COUNT.SIM
@@ -187,16 +179,14 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
 
 #' Simulate gene expression for spots inside a domain
 #'
-#' @param SEED Integer random seed for reproducibility.
 #' @param seqDepth_factor Numeric scaling factor for sequencing depth.
 #' @param coords_norm_sub Data frame of normalized coordinates for spots inside the domain.
 #' @param nnGP_fit Fitted NNGP model object for the gene.
 #' @return Numeric vector of simulated counts for the spots inside the domain.
 #' @noRd
-simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit){
+simulate_geneCounts_in <- function(seqDepth_factor, coords_norm_sub, nnGP_fit){
   
-  set.seed(SEED)
-  b.condition <- mean_in(SEED, coords_norm_sub, nnGP_fit)
+  b.condition <- mean_in(coords_norm_sub, nnGP_fit)
   
   ## inside domain, seq depth R
   y.post <- rpois(n = nrow(coords_norm_sub), lambda = seqDepth_factor * b.condition)
@@ -205,7 +195,6 @@ simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_
 
 #' Simulate gene expression for spots outside a domain
 #'
-#' @param SEED Integer random seed for reproducibility.
 #' @param seqDepth_factor Numeric scaling factor for sequencing depth.
 #' @param counts Matrix of gene expression counts (genes x spots).
 #' @param gene Character string specifying the gene name.
@@ -213,13 +202,12 @@ simulate_geneCounts_in <- function(SEED, seqDepth_factor, coords_norm_sub, nnGP_
 #' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
 #' @return Numeric vector of simulated counts for the spots outside the domain.
 #' @noRd
-simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_idx, COORDS.OUT){
+simulate_geneCounts_out <- function(seqDepth_factor, counts, gene, spot_idx, COORDS.OUT){
    
-  mean.out.low <- mean_out(counts, gene, spot_idx)
-  set.seed(SEED)
+  mean.out <- mean_out(counts, gene, spot_idx)
   
   ## modify the outside gene expression by seqDepth factor R
-  y.out <- rpois(n = nrow(COORDS.OUT),lambda = seqDepth_factor * mean.out.low)
+  y.out <- rpois(n = nrow(COORDS.OUT),lambda = seqDepth_factor * mean.out)
   return(y.out)
 }
 
@@ -228,20 +216,18 @@ simulate_geneCounts_out <- function(SEED, seqDepth_factor, counts, gene, spot_id
 #'
 #' Uses a single gene vector instead of full count matrix to reduce memory usage.
 #'
-#' @param SEED Integer random seed for reproducibility.
 #' @param seqDepth_factor Numeric scaling factor for sequencing depth.
 #' @param gene_count_row Numeric vector of counts for the gene.
 #' @param spot_idx Numeric vector of indices of spots inside the domain.
 #' @param COORDS.OUT Data frame of coordinates for spots outside the domain.
 #' @return Numeric vector of simulated counts for the spots outside the domain.
 #' @noRd
-simulate_geneCounts_out_refactored <- function(SEED, seqDepth_factor, gene_count_row, spot_idx, COORDS.OUT){
+simulate_geneCounts_out_refactored <- function(seqDepth_factor, gene_count_row, spot_idx, COORDS.OUT){
   
-  mean.out.low <- mean_out_refactored(gene_count_row, spot_idx)
-  set.seed(SEED)
+  mean.out <- mean_out_refactored(gene_count_row, spot_idx)
   
   ## modify the outside gene expression by seqDepth factor R
-  y.out <- rpois(n = nrow(COORDS.OUT),lambda = seqDepth_factor * mean.out.low)
+  y.out <- rpois(n = nrow(COORDS.OUT),lambda = seqDepth_factor * mean.out)
   return(y.out)
 }
 
@@ -310,6 +296,7 @@ process_count <- function(GENE.COUNT, counts, domain, GP.par){
 #' @noRd
 simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, coords_norm){
     
+	set.seed(SEED)
     spot_idx <- which(coords_norm$domain == domain)        
     coords_norm_sub <- coords_norm[spot_idx, ]
     coords_norm_out <- coords_norm[-spot_idx, ]
@@ -323,10 +310,10 @@ simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, c
             
             gene_count_row <- counts[gene, ]
             ## simulate the inside domain gene expression
-            y.post <- simulate_geneCounts_in(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit)
+            y.post <- simulate_geneCounts_in(seqDepth_factor, coords_norm_sub, nnGP_fit)
             
             ## simulate the outside gene expression: based on the lower 50% of the values
-            y.out <- simulate_geneCounts_out_refactored(SEED, seqDepth_factor, gene_count_row, spot_idx, coords_norm_out)
+            y.out <- simulate_geneCounts_out_refactored(seqDepth_factor, gene_count_row, spot_idx, coords_norm_out)
             count.sim <- combine_in_out(coords_norm_sub, coords_norm_out, y.post, y.out, counts)
             identical(rownames(count.sim),colnames(counts))
             tt <- count.sim$sim
@@ -358,7 +345,8 @@ simulate_base_count <- function(SEED, seqDepth_factor, domain, GP.par, counts, c
 #' @return Matrix of simulated counts for the domain genes.
 #' @noRd
 simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, counts, coords_norm, SIGMA){
-
+	
+	set.seed(SEED)
   ## modulate the spatial pattern via changing the sigma in the FG fit
     FG.sim <- FG.par$model
     FG.sim$sigma_sq <- SIGMA * FG.par$model$sigma_sq
@@ -373,13 +361,9 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
   
     n.loc <- nrow(coords_norm_sub)
     N.loc <- round(n.loc * 2)
-  
-  
-    set.seed(SEED)
+ 
     pred.loc1 <- plot_density_FG_EM(N.loc, FG.sim)[[2]]
-    set.seed(SEED + 1)
     pred.loc2 <- plot_density_FG_EM(N.loc, FG.sim)[[2]]
-    set.seed(SEED + 2)
     pred.loc3 <- plot_density_FG_EM(N.loc, FG.sim)[[2]]
     pred.loc <- rbind(pred.loc1,pred.loc2,pred.loc3)
     colnames(pred.loc) <- c('x', 'y')
@@ -426,10 +410,10 @@ simulate_worse_count <- function(SEED, seqDepth_factor, domain, GP.par, FG.par, 
       
       gene_count_row <- counts[gene, ]
       # inside domain gene expression
-      y.post <- simulate_geneCounts_in(SEED, seqDepth_factor, coords_norm_sub, nnGP_fit)
+      y.post <- simulate_geneCounts_in(seqDepth_factor, coords_norm_sub, nnGP_fit)
       
       ## simulate outside domain gene expression
-      y.out <- simulate_geneCounts_out_refactored(SEED, seqDepth_factor, gene_count_row, spot_idx, REST)
+      y.out <- simulate_geneCounts_out_refactored(seqDepth_factor, gene_count_row, spot_idx, REST)
       
       count.sim <- combine_in_out(sim_newloc, REST, y.post, y.out, counts)                
       
@@ -501,4 +485,81 @@ Nearest_RANN_vectorized <- function(source_matrix, target_matrix) {
   
   return(result)
 }
+
+#' Predict Within-Domain Mean Expression from a Fitted NNGP Model
+#'
+#' Uses a fitted NNGP model to predict expected expression levels for each spot inside a domain.
+#' The predicted values are transformed to the count scale and returned as a numeric vector,
+#' which is used as the within-domain mean intensity in simulation.
+#'
+#' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
+#'   Must contain columns \code{x} and \code{y}.
+#' @param nnGP_fit Fitted NNGP model object for the gene (compatible with
+#'   \code{BRISC::BRISC_prediction}).
+#'
+#' @return Numeric vector of predicted within-domain mean expression values.
+#'
+#' @noRd
+
+mean_in <- function(coords_norm_sub, nnGP_fit) {
+
+    if (!is.data.frame(coords_norm_sub) || !all(c("x", "y") %in% names(coords_norm_sub))) stop("coords_norm_sub must be a data frame with 'x' and 'y' columns.")
+	
+	coords_spatial <- as.matrix(coords_norm_sub[, c('x', 'y')])
+	temp_file <- tempfile()
+	sink(temp_file)
+	brisc_pred <- BRISC::BRISC_prediction(nnGP_fit, coords_spatial)
+	sink()
+	unlink(temp_file)
+    sigma2 <- nnGP_fit$Theta['sigma.sq']
+	tau2 <- nnGP_fit$Theta['tau.sq']   
+    b.condition <- round(exp(brisc_pred$prediction + tau2/2))-1
+    return(b.condition)
+}
+
+#' Compute Outside-Domain Baseline Mean Expression
+#'
+#' Calculates the outside-domain baseline mean for a given gene by taking the mean of the
+#' counts outside the domain. This provides a robust baseline
+#' against high-expression outliers.
+#'
+#' @param counts Matrix of gene expression counts (genes x spots).
+#' @param gene Character string specifying the gene name.
+#' @param spot_idx Integer vector indicating indices of spots within the domain.
+#'
+#' @return Numeric scalar representing the outside-domain baseline mean expression.
+#' @noRd
+mean_out <- function(counts, gene, spot_idx) {
+    if (!inherits(counts, "matrix") && !inherits(counts, "CsparseMatrix")) {
+      stop("counts must be a matrix or dgCMatrix.")
+    }
+    if (!is.character(gene) || length(gene) != 1) stop("gene must be a single character string.")
+    if (!is.numeric(spot_idx)) stop("spot_idx must be numeric.")
+    
+    gene.count <- counts[which(rownames(counts) == gene), ]
+    OUT <- gene.count[-spot_idx]
+    mean.out <- mean(OUT)
+    return(mean.out)
+}
+
+
+#' Compute Outside-Domain Baseline Mean Expression (Refactored)
+#'
+#' Refactored version of \code{mean_out} that works on a single gene count vector rather than a
+#' full gene-by-spot matrix.
+#'
+#' @param gene_count_row Numeric vector of observed counts for a single gene across all spots.
+#' @param spot_idx Integer vector indicating indices of spots within the domain.
+#'
+#' @return Numeric scalar representing the outside-domain baseline mean expression.
+#' @noRd
+mean_out_refactored <- function(gene_count_row, spot_idx){
+  if(!is.numeric(spot_idx)) stop('spot_idx must be numeric.')
+  
+  OUT <- gene_count_row[-spot_idx]
+  
+  return(mean(OUT))
+}
+
+
 
