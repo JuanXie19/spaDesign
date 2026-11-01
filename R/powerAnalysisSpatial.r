@@ -14,13 +14,11 @@
 #' @return A data frame with columns:
 #' \describe{
 #'   \item{seq_depth}{Sequencing depth scaling factor.}
-#'   \item{prop}{Proportion of undisturbed patterns.}
+#'   \item{prop}{Proportion of disturbed patterns.}
 #'   \item{total_counts}{Total counts in the simulated data.}
 #'   \item{NMI}{Normalized Mutual Information from power evaluation.}
 #' }
 #' 
-#' @importFrom future.apply future_lapply
-#' @importFrom future plan
 #' @export
 #' 
 #' @examples
@@ -33,10 +31,6 @@
 #' }
 
 powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, n_rep, n_cores) {
-
-	# Use the requested worker count and restore the caller's plan on exit.
-	.spa_previous_plan <- .spa_multisession_plan(n_cores)
-	on.exit(future::plan(.spa_previous_plan), add = TRUE)
     
     # Input checks
     stopifnot(is.numeric(prop_range), all(prop_range >= 0), all(prop_range <= 1))
@@ -62,7 +56,7 @@ powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, 
         message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, prop = %s, SEED = %s", 
                         seq_depth_factor, prop, SEED))
                         
-		    rst <- evaluatePowerSeurat(DATA)
+		rst <- evaluatePowerSeurat(DATA)
         NMI <- rst@NMI
         total_counts <- sum(simCounts(DATA))
         
@@ -72,9 +66,9 @@ powerAnalysisSpatial <- function(spaDesign, SIGMA, prop_range, seq_depth_range, 
                    NMI = NMI)
     }
   
-    results <- future.apply::future_lapply(1:nrow(param_grid), function(i){
+    results <- parallel::mclapply(1:nrow(param_grid), function(i){
       process_row(param_grid[i, ])
-    }, future.seed = TRUE)
+    }, mc.cores = n_cores)
     results <- do.call(rbind, results)
     return(results)
 }
