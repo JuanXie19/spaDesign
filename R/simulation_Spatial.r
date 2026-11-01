@@ -66,7 +66,7 @@
 #'   seq_depth_factor = 1.5,         # 50% increase in sequencing depth
 #'   SIGMA = 1.2,                    # 20% increase in spatial noise
 #'   SEED = 123,
-#'   prop = 0.7,                     # Keep 70% genes undisturbed
+#'   prop = 0.3,                     # Keep 30% genes disturbed
 #'   n_cores = 4
 #' )
 #' 
@@ -161,7 +161,7 @@ simulation_Spatial <- function(spaDesign, selected_M_list = NULL, seq_depth_fact
   
   generateCount_fast <- function(){
     count_combined <- base_count
-    disturbed_genes <- sample(rownames(base_count), round((1 - prop) * nrow(base_count)))
+    disturbed_genes <- sample(rownames(base_count), round(prop * nrow(base_count)))
     count_combined[disturbed_genes, ] <- worse_count[disturbed_genes, ]
     count_combined
   }
