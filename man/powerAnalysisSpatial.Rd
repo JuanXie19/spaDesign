@@ -31,7 +31,7 @@ powerAnalysisSpatial(
 A data frame with columns:
 \describe{
 \item{seq_depth}{Sequencing depth scaling factor.}
-\item{prop}{Proportion of undisturbed patterns.}
+\item{prop}{Proportion of disturbed patterns.}
 \item{total_counts}{Total counts in the simulated data.}
 \item{NMI}{Normalized Mutual Information from power evaluation.}
 }

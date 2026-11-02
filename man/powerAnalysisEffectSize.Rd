@@ -2,20 +2,30 @@
 % Please edit documentation in R/powerAnalysisEffectSize.r
 \name{powerAnalysisEffectSize}
 \alias{powerAnalysisEffectSize}
-\title{Power analysis via effect size and sequencing depth simulations}
+\title{Evaluate clustering across effect sizes and sequencing depths}
 \usage{
-powerAnalysisEffectSize(spaDesign, es_range, seq_depth_range, n_rep, n_cores)
+powerAnalysisEffectSize(
+  spaDesign,
+  es_range,
+  seq_depth_range,
+  n_rep,
+  mean_matrix = NULL
+)
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object with estimated GP and FG model parameters.}
+\item{spaDesign}{A spaDesign object containing reference counts, spot metadata,
+and fitted GP models required by prepare_genelevel_mean().}
 
-\item{es_range}{Numeric vector of effect size scaling factors.}
+\item{es_range}{Nonempty numeric vector of finite effect powers > 0.
+One preserves baseline domain means, zero equalizes positive domain means,
+and values above one amplify domain mean ratios.}
 
-\item{seq_depth_range}{Numeric vector of sequencing depth scaling factors.}
+\item{seq_depth_range}{Nonempty numeric vector of finite depth factors > 0.}
 
-\item{n_rep}{Integer. Number of replications per scenario.}
+\item{n_rep}{Positive integer number of replicates per scenario.}
 
-\item{n_cores}{Integer. Number of CPU cores for parallelization (default: 2).}
+\item{mean_matrix}{Optional fixed baseline mean matrix returned by
+prepare_genelevel_mean() for the same reference and fitted models.}
 }
 \value{
 Data frame with columns:
@@ -27,23 +37,23 @@ Data frame with columns:
 }
 }
 \description{
-Performs power analysis by simulating data under varying effect sizes and sequencing depths,
-then evaluating clustering performance.
+Simulates counts using fitted-GP means and evaluates
+clustering with evaluatePowerSeurat().
 }
 \details{
-For each combination of effect size and sequencing depth, \code{n_rep} datasets are simulated
-and evaluated. Clustering performance is measured using Normalized Mutual Information (NMI)
-between predicted and true domain labels.
+The baseline GP mean matrix is prepared once. Each distinct effect
+power is applied once before parallel simulation.
+Seeds 1 through n_rep are reused across scenarios, preserving the supplied
+simulation convention. Reusing seeds does not implement nested read
+thinning. The caller's future plan is restored on exit. Evaluation uses
+future.seed = TRUE; for reproducible stochastic clustering as well as
+counts, call set.seed() before invoking this function.
 }
 \examples{
 \dontrun{
+set.seed(123)
 results <- powerAnalysisEffectSize(
-  spaDesign = my_spadesign,
-  es_range = c(1, 2, 3),
-  seq_depth_range = c(0.5, 1, 3, 5),
-  n_rep = 5,
-  n_cores = 4
-)
-head(results)
+  my_spadesign, es_range = c(0.5, 1, 3),
+  seq_depth_range = c(0.5, 1, 3, 5), n_rep = 5)
 }
 }

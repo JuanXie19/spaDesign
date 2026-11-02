@@ -43,8 +43,7 @@ spatial patterns. The remaining (1-prop) genes will have perturbed locations.}
 \value{
 A \code{spaDesign} object with updated slots:
 \describe{
-\item{simCounts}{Numeric matrix (genes × spots) of simulated expression counts,
-averaged over 1000 replications of random gene selection}
+\item{simCounts}{Numeric matrix (genes × spots) of simulated expression counts}
 \item{simcolData}{Data frame of spot metadata, copied from \code{refcolData(spaDesign)}}
 }
 }
@@ -59,8 +58,7 @@ The simulation proceeds in three steps:
 \enumerate{
 \item Generate baseline counts for all genes using fitted GP models
 \item Generate perturbed counts using FG-model-based location disturbance
-\item Create final counts by randomly mixing baseline and perturbed patterns,
-with averaging over 1000 random selections
+\item Create final counts by randomly mixing baseline and perturbed patterns
 }
 
 The FG model parameters are modified as follows:
@@ -78,7 +76,7 @@ simulated_data <- simulation_Spatial(
   seq_depth_factor = 1.5,         # 50\% increase in sequencing depth
   SIGMA = 1.2,                    # 20\% increase in spatial noise
   SEED = 123,
-  prop = 0.7,                     # Keep 70\% genes undisturbed
+  prop = 0.3,                     # Keep 30\% genes disturbed
   n_cores = 4
 )
 

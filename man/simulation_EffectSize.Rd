@@ -2,60 +2,49 @@
 % Please edit documentation in R/simulation_EffectSize.r
 \name{simulation_EffectSize}
 \alias{simulation_EffectSize}
-\title{Simulate spatial counts with scaled effect size and sequencing depth}
+\title{Simulate gene-level spatial counts with effect and depth scaling}
 \usage{
-simulation_EffectSize(spaDesign, seq_depth_factor, effect_size_factor, SEED)
+simulation_EffectSize(
+  spaDesign,
+  seq_depth_factor = 1,
+  effect_size_factor = 1,
+  SEED = 123,
+  mean_matrix = NULL
+)
 }
 \arguments{
-\item{spaDesign}{A \code{spaDesign} object containing:
-\itemize{
-\item Reference count matrix (accessible via \code{refCounts})
-\item Spatial coordinates and domain labels (accessible via \code{refcolData})
-\item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
-}}
+\item{spaDesign}{A spaDesign object containing reference counts and metadata.}
 
-\item{seq_depth_factor}{Numeric scalar > 0. Scaling factor for sequencing depth.
-Values greater than 1 increase the expected counts; values less than 1 decrease counts.}
+\item{seq_depth_factor}{Finite numeric scalar > 0; multiplies Poisson means.}
 
-\item{effect_size_factor}{Numeric scalar > 0. Scaling factor for within-domain effect size.
-Values greater than 1 strengthen domain enrichment; values less than 1 weaken it.}
+\item{effect_size_factor}{Finite numeric scalar > 0; passed to effect_power
+in adjust_genelevel_effect.}
 
-\item{SEED}{Integer random seed for reproducibility.}
+\item{SEED}{Nonnegative integer seed.}
+
+\item{mean_matrix}{Optional fixed means returned by prepare_genelevel_mean
+for this reference and these fitted models. Columns must match reference counts exactly; rows must be
+reference genes. The caller must regenerate this matrix if counts,
+coordinates, domains or fitted models change.}
 }
 \value{
-A \code{spaDesign} object with:
-\itemize{
-\item \code{simCounts}: simulated gene-by-spot count matrix
-\item \code{simcolData}: spot metadata copied from \code{refcolData(spaDesign)}
-}
+The spaDesign object with simCounts and simcolData updated.
 }
 \description{
-Simulates spatial gene expression counts using fitted NNGP models from a \code{spaDesign} object.
-For each spatial domain, the function generates Poisson counts for domain-informative genes by:
-(i) predicting within-domain mean expression from the fitted NNGP model, and
-(ii) estimating outside-domain baseline expression from observed counts.
+Simulate gene-level spatial counts with effect and depth scaling
 }
 \details{
-Two global scaling factors are supported:
-\itemize{
-\item \code{seq_depth_factor}: controls overall sequencing depth (global count scaling)
-\item \code{effect_size_factor}: controls within-domain enrichment strength
-}
-
-Simulated counts are stored in the \code{simCounts} slot and spot metadata is copied
-into \code{simcolData}.
+Every call samples independent Poisson entries conditional on the
+adjusted means, setting the seed once per dataset. For a given gene, the
+expected total is seq_depth_factor times its baseline total.
 }
 \examples{
 \dontrun{
-# Simulate counts with increased depth and stronger domain effect
-sim_obj <- simulation_EffectSize(
-  spaDesign = my_spadesign,
-  seq_depth_factor = 1.5,
-  effect_size_factor = 2.0,
-  SEED = 123
+mu <- prepare_genelevel_mean(my_spadesign)
+simulated <- simulation_effectSize2(
+  my_spadesign, seq_depth_factor = 0.5,
+  effect_size_factor = 3, SEED = 1, mean_matrix = mu
 )
-
-sim_counts <- sim_obj@simCounts
-dim(sim_counts)
+simulated@simCounts
 }
 }

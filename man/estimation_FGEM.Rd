@@ -6,10 +6,10 @@
 \usage{
 estimation_FGEM(
   spaDesign,
-  iter_max = 1000,
+  iter_max = 500,
   M_candidates = 2:5,
   tol = 0.1,
-  n_cores = 4,
+  n_cores = 2,
   verbose = FALSE
 )
 }
@@ -23,7 +23,7 @@ with columns \code{"x"}, \code{"y"}, and \code{"domain"} (one row per spot).}
 
 \item{tol}{Positive convergence tolerance for EM algorithm (default = 1e-1)}
 
-\item{n_cores}{Number of CPU cores for parallization (default = 1). Uses multisession workers on Windows, macOS, and Linux.}
+\item{n_cores}{Number of CPU cores for parallization (default = 1).}
 
 \item{verbose}{Logical; if \code{TRUE}, print progress messages (default = TRUE).}
 }
