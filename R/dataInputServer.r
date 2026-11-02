@@ -139,8 +139,8 @@ dataInputServer <- function(id, reference_data_paths) {
             seurat <- Seurat::FindNeighbors(seurat, dims = 1:30)
             seurat <- Seurat::FindClusters(seurat, resolution = 2)
             
-            X <- Seurat::AggregateExpression(seurat, assays = DefaultAssay(seurat),
-                                             slot = "scale.data", group.by = "seurat_clusters")[[1]]
+            X <- Seurat::AverageExpression(seurat, assays = DefaultAssay(seurat),
+                                             layer = "scale.data", group.by = "seurat_clusters")[[1]]
             clust2 <- cutree(hclust(dist(t(X))), k = input$n_clusters)
             new_labels <- clust2
             names(new_labels) <- levels(seurat)
@@ -178,8 +178,7 @@ dataInputServer <- function(id, reference_data_paths) {
             DATA,
             logfc_cutoff = logfc_cutoff,
             mean_in_cutoff = mean_in_cutoff,
-            max_num_gene = max_num_gene,
-            n_cores = n_cores
+            max_num_gene = max_num_gene
           )
           message("✓ Feature selection completed")
         })
