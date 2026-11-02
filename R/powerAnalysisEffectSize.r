@@ -1,18 +1,25 @@
-#' Power analysis via effect size and sequencing depth simulations
+#' Evaluate clustering across effect sizes and sequencing depths
 #'
-#' Performs power analysis by simulating data under varying effect sizes and sequencing depths,
-#' then evaluating clustering performance.
+#' Simulates counts using fitted-GP means and evaluates
+#' clustering with evaluatePowerSeurat().
 #'
-#' @param spaDesign A \code{spaDesign} object with estimated GP and FG model parameters.
-#' @param es_range Numeric vector of effect size scaling factors.
-#' @param seq_depth_range Numeric vector of sequencing depth scaling factors.
-#' @param n_rep Integer. Number of replications per scenario.
-#' @param n_cores Integer. Number of CPU cores for parallelization (default: 2).
+#' @param spaDesign A spaDesign object containing reference counts, spot metadata,
+#'   and fitted GP models required by prepare_genelevel_mean().
+#' @param es_range Nonempty numeric vector of finite effect powers > 0.
+#'   One preserves baseline domain means, zero equalizes positive domain means,
+#'   and values above one amplify domain mean ratios.
+#' @param seq_depth_range Nonempty numeric vector of finite depth factors > 0.
+#' @param n_rep Positive integer number of replicates per scenario.
+#' @param mean_matrix Optional fixed baseline mean matrix returned by
+#'   prepare_genelevel_mean() for the same reference and fitted models.
 #'
-#' @details
-#' For each combination of effect size and sequencing depth, \code{n_rep} datasets are simulated
-#' and evaluated. Clustering performance is measured using Normalized Mutual Information (NMI)
-#' between predicted and true domain labels.
+#' @details The baseline GP mean matrix is prepared once. Each distinct effect
+#'   power is applied once before parallel simulation. 
+#'   Seeds 1 through n_rep are reused across scenarios, preserving the supplied
+#'   simulation convention. Reusing seeds does not implement nested read
+#'   thinning. The caller's future plan is restored on exit. Evaluation uses
+#'   future.seed = TRUE; for reproducible stochastic clustering as well as
+#'   counts, call set.seed() before invoking this function.
 #'
 #' @return Data frame with columns:
 #'   \describe{
@@ -22,91 +29,87 @@
 #'     \item{NMI}{Normalized Mutual Information between predicted and true labels}
 #'   }
 #'
-#' @importFrom future plan
-#' @importFrom future.apply future_lapply
 #' @export
-#'
 #' @examples
 #' \dontrun{
+#' set.seed(123)
 #' results <- powerAnalysisEffectSize(
-#'   spaDesign = my_spadesign,
-#'   es_range = c(1, 2, 3),
-#'   seq_depth_range = c(0.5, 1, 3, 5),
-#'   n_rep = 5,
-#'   n_cores = 4
-#' )
-#' head(results)
+#'   my_spadesign, es_range = c(0.5, 1, 3),
+#'   seq_depth_range = c(0.5, 1, 3, 5), n_rep = 5)
 #' }
+powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range,
+                                   n_rep, mean_matrix = NULL) {
+  if (!inherits(spaDesign, 'spaDesign')) {
+    stop('spaDesign must be a spaDesign object.')
+  }
+  if (!is.numeric(es_range) || !length(es_range) ||
+      any(!is.finite(es_range)) || any(es_range < 0)) {
+    stop('es_range must contain finite numeric effect powers >= 0.')
+  }
+  if (!is.numeric(seq_depth_range) || !length(seq_depth_range) ||
+      any(!is.finite(seq_depth_range)) || any(seq_depth_range <= 0)) {
+    stop('seq_depth_range must contain finite numeric factors > 0.')
+  }
+  check_integer <- function(x, label) {
+    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) ||
+        x < 1 || x > .Machine$integer.max || x != floor(x)) {
+      stop(label, ' must be a positive integer within the R integer range.')
+    }
+  }
+  check_integer(n_rep, 'n_rep')
 
+  # Validate reference alignment even when a precomputed matrix is supplied.
+  counts <- refCounts(spaDesign)
+  meta <- as.data.frame(refcolData(spaDesign))
+  .genelevel_reference_check(counts, meta)
+  # prepare the mean_matrix
+  if (is.null(mean_matrix)) mean_matrix <- prepare_genelevel_mean(spaDesign)
+  .genelevel_mean_check(mean_matrix)
+  if (!identical(colnames(mean_matrix), colnames(counts)) ||
+      any(!rownames(mean_matrix) %in% rownames(counts))) {
+    stop('mean_matrix must use reference genes and the exact reference spot order.')
+  }
 
-powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range, n_rep, n_cores) {
-    
-	# Use the requested worker count and restore the caller's plan on exit.
-	.spa_previous_plan <- .spa_multisession_plan(n_cores)
-	on.exit(future::plan(.spa_previous_plan), add = TRUE)
+  effects <- unique(es_range)
+  # adjust the mean matrix
+  adjusted_means <- lapply(effects, function(es) {
+    adjust_genelevel_effect(mean_matrix, meta$domain, effect_power = es)
+  })
+  param_grid <- expand.grid(
+    seq_depth = seq_depth_range, effect_size = es_range,
+    SEED = seq_len(n_rep), KEEP.OUT.ATTRS = FALSE,
+    stringsAsFactors = FALSE
+  )
+  effect_index <- match(param_grid$effect_size, effects)
 
-	# Input validation
-    if (!inherits(spaDesign, "spaDesign")) {
-      stop("spaDesign must be a spaDesign object")
-    }
-  
-    if (!is.numeric(es_range) || any(es_range <= 0)) {
-      stop("es_range must contain positive numeric values")
-    }
-  
-    if (!is.numeric(seq_depth_range) || any(seq_depth_range <= 0)) {
-      stop("seq_depth_range must contain positive numeric values")
-    }
-  
-    if (!is.numeric(n_rep) || n_rep <= 0 || n_rep != round(n_rep)) {
-      stop("n_rep must be a positive integer")
-    }
-  
-    if (!is.numeric(n_cores) || n_cores <= 0 || n_cores != round(n_cores)) {
-      stop("n_cores must be a positive integer")
-    }
-  
-  
-  # Create a data frame of all combinations of es_range, seq_depth_range, and n_rep
-    param_grid <- expand.grid(seq_depth = seq_depth_range, 
-                              effect_size = es_range, 
-                              SEED = seq_len(n_rep))
-
-    # Function to process each row of the param_grid
-    process_row <- function(row) {
-        effect_size_factor <- as.numeric(row["effect_size"])
-        seq_depth_factor <- as.numeric(row["seq_depth"])
-        SEED <- as.integer(row["SEED"])
-        
-        # Print values for debugging
-        message(sprintf("Simulating data with seq_depth_factor = %s, effect_size_factor = %s, SEED = %s", 
-                        seq_depth_factor, effect_size_factor, SEED))
-    
-        spaDesign <- simulation_EffectSize_refactored(spaDesign, seq_depth_factor, effect_size_factor, SEED)
-        
-        message(sprintf("Evaluating power for simulated data with seq_depth_factor = %s, effect_size_factor = %s, SEED = %s", 
-                        seq_depth_factor, effect_size_factor, SEED))
-        
-		    rst <- evaluatePowerSeurat(spaDesign)
-
-        data.frame(
-          seq_depth = seq_depth_factor, 
-          effect_size = effect_size_factor, 
-          total_counts = sum(spaDesign@simCounts), 
-          NMI = rst@NMI)
-    }
-  
-    results <- future.apply::future_lapply(1:nrow(param_grid), function(i){
-      process_row(param_grid[i, ])
-    }, future.seed = TRUE)
-    
-    # Check for errors
-    if (any(sapply(results, inherits, "try-error"))) {
-      stop("Error in parallel processing. Check individual scenario results.")
-    }
-    
-    results <- do.call(rbind, results)
-    
+  process_row <- function(i) {
+    depth <- param_grid$seq_depth[[i]]
+    effect <- param_grid$effect_size[[i]]
+    seed <- param_grid$SEED[[i]]
+    tryCatch({
+      # Effect is already applied: factor 1 prevents applying it twice.
+      simulated <- simulation_EffectSize(
+        spaDesign = spaDesign,
+        seq_depth_factor = depth,
+        effect_size_factor = 1,
+        SEED = seed,
+        mean_matrix = adjusted_means[[effect_index[[i]]]]
+      )
+      evaluated <- evaluatePowerSeurat(simulated)
+      nmi <- evaluated@NMI
+      if (!is.numeric(nmi) || length(nmi) != 1L || !is.finite(nmi)) {
+        stop('evaluatePowerSeurat() must return one finite numeric NMI.')
+      }
+      data.frame(seq_depth = depth, effect_size = effect, SEED = seed,
+                 total_counts = sum(simulated@simCounts), NMI = nmi)
+    }, error = function(e) {
+      stop(sprintf('Scenario failed (depth=%s, effect=%s, SEED=%s): %s',
+                   depth, effect, seed, conditionMessage(e)), call. = FALSE)
+    })
+  }
+  results <- lapply(
+    seq_len(nrow(param_grid)), process_row)
+  results <- do.call(rbind, results)
+  rownames(results) <- NULL
+  results
 }
-
-

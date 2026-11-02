@@ -1,489 +1,224 @@
-#' Simulate spatial counts with scaled effect size and sequencing depth
+#' Prepare fixed gene-level spatial means
 #'
-#' Simulates spatial gene expression counts using fitted NNGP models from a \code{spaDesign} object.
-#' For each spatial domain, the function generates Poisson counts for domain-informative genes by:
-#' (i) predicting within-domain mean expression from the fitted NNGP model, and
-#' (ii) estimating outside-domain baseline expression from observed counts.
+#' Predicts selected gene-domain blocks using existing fitted GP models. Other
+#' blocks use the full reference mean for that gene in the corresponding domain.
 #'
-#' Two global scaling factors are supported:
-#' \itemize{
-#'   \item \code{seq_depth_factor}: controls overall sequencing depth (global count scaling)
-#'   \item \code{effect_size_factor}: controls within-domain enrichment strength
-#' }
-#' 
-#' Simulated counts are stored in the \code{simCounts} slot and spot metadata is copied
-#' into \code{simcolData}.
-#'
-#' @param spaDesign A \code{spaDesign} object containing:
-#'   \itemize{
-#'     \item Reference count matrix (accessible via \code{refCounts})
-#'     \item Spatial coordinates and domain labels (accessible via \code{refcolData})
-#'     \item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
-#'   }
-#' @param seq_depth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
-#'   Values greater than 1 increase the expected counts; values less than 1 decrease counts.
-#' @param effect_size_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
-#'   Values greater than 1 strengthen domain enrichment; values less than 1 weaken it.
-#' @param SEED Integer random seed for reproducibility.
-#' @return A \code{spaDesign} object with:
-#'   \itemize{
-#'     \item \code{simCounts}: simulated gene-by-spot count matrix
-#'     \item \code{simcolData}: spot metadata copied from \code{refcolData(spaDesign)}
-#'   }
-#'
-#' @importFrom igraph norm_coords
-#' @importFrom BRISC BRISC_prediction
-#' @importFrom stats median rpois
+#' @param spaDesign A spaDesign object with refCounts, refcolData and paramsGP.
+#' @return A numeric gene-by-spot matrix of Poisson means.
+#' @details Coordinates are normalized globally to [0,1] on each axis. This must match the coordinate transformation
+#'   used to fit paramsGP. Predictions are transformed using
+#'   round(exp(prediction + tau.sq / 2)) - 1, preserving the supplied convention.
 #' @export
-#'
-#' @examples
-#' \dontrun{
-#' # Simulate counts with increased depth and stronger domain effect
-#' sim_obj <- simulation_EffectSize(
-#'   spaDesign = my_spadesign,
-#'   seq_depth_factor = 1.5,
-#'   effect_size_factor = 2.0,
-#'   SEED = 123
-#' )
-#'
-#' sim_counts <- sim_obj@simCounts
-#' dim(sim_counts)
-#' }
-
-simulation_EffectSize <- function(spaDesign, seq_depth_factor, effect_size_factor, SEED){
-
-    if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
-        stop("seq_depth_factor must be a positive numeric value.")
-    }
-    if (!is.numeric(effect_size_factor) || effect_size_factor <= 0) {
-        stop("effect_size_factor must be a positive numeric value.")
-    }
-	
-	# extract reference data
-    count_matrix <- refCounts(spaDesign)    
-    loc_data <- refcolData(spaDesign)[, c('x', 'y', 'domain')]
-    par_GP <- paramsGP(spaDesign)
-    
-    ## scale the coordinates to [0,1] range
-    coords_norm <- igraph::norm_coords(as.matrix(loc_data[,c('x', 'y')]),xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-    coords_norm <- as.data.frame(coords_norm)
-    coords_norm$domain <- loc_data$domain
-    
-    seqDepth_factor <- seq_depth_factor
-    ES_factor <- effect_size_factor
-
-    message("Starting simulation...\n")
-    all_count <- lapply(seq_along(par_GP), function(d){
-        domain <- names(par_GP)[d]
-        GP.par <- par_GP[[d]]
-        
-        idx <- which(coords_norm$domain == domain)
-        coords_norm_sub <- coords_norm[idx, ]
-        coords_norm_out <- coords_norm[-idx, ]
-                
-        message(sprintf("Simulating genes for domain: %s\n", domain))
-                
-        gene_count <- lapply(seq_along(GP.par), function(g) {
-            tryCatch({
-                    gene <- names(GP.par)[g]
-                    message(sprintf("Simulating gene: %s in domain: %s\n", gene, domain))
-                    nnGP_fit <- GP.par[[g]]
-                    
-                    spot_idx <- idx
-                
-                    tt <- simulate_genecount_ES(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, count_matrix, gene, spot_idx)
-                    return(tt)
-                    }, error = function(e) {
-                    warning(paste('Error in gene', gene, 'of domain', domain, ':', e$message))
-                    return(NULL)            
-                    })
-        })
-        
-        # Filter out NULL values
-        gene_count <- Filter(Negate(is.null), gene_count)
-    
-        if (length(gene_count) > 0) {
-          if (length(gene_count) == 1) {
-            gene_count <- t(data.frame(gene_count[[1]]))  # Ensure it's a data frame if only one row
-          } else {
-            gene_count <- do.call(rbind, gene_count)
-          }
-        colnames(gene_count) <- colnames(count_matrix)
-        rownames(gene_count) <- paste0(domain, "-", names(GP.par))
-        } else {
-          warning(paste("All gene simulations for domain", domain, "returned NULL."))
-          return(NULL)
-        }
-    
-        return(gene_count)
-    })
-    
-    # Filter out NULL values from all_count
-    all_count <- Filter(Negate(is.null), all_count)
-
-    if (length(all_count) > 0) {
-        all_count <- do.call(rbind, all_count)
-        if (is.matrix(all_count) || is.data.frame(all_count)) {
-            spaDesign@simCounts <- all_count
-            spaDesign@simcolData <- refcolData(spaDesign)
-            message("Simulation complete.\n")
-            return(spaDesign)
-        } else {
-            stop("Combined all_count is not a matrix or data frame.")
-        }
-    } else {
-        stop("All domain simulations returned NULL.")
-    }    
-}
-
-
-#' (Refactored)Simulate spatial transcriptomics data with modified effect size and sequencing depth
-#'
-#' This function generates simulated spatial gene expression counts based on a fitted NNGP model.
-#' It allows scaling of sequencing depth and effect size for domain-informative genes.
-#'
-#' @param spaDesign A \code{spaDesign} object containing spatial coordinates, gene expression, 
-#'   and estimated NNGP parameters.
-#' @param seq_depth_factor Numeric scaling factor for sequencing depth (must be > 0).
-#' @param effect_size_factor Numeric scaling factor for effect size (must be > 0).
-#' @param SEED Integer random seed for reproducibility.
-#' @return A \code{spaDesign} object with simulated count matrix stored in \code{simCounts}, 
-#'   and updated \code{simcolData} with spot metadata.
-#'
-#' Simulate Spatial Counts with Scaled Sequencing Depth and Effect Size (Refactored)
-#'
-#' A refactored version of \code{\link{simulation_EffectSize}} with reduced memory usage.
-#' Instead of passing the full reference count matrix into each gene simulation step,
-#' this function extracts one gene vector at a time and passes only the required data.
-#'
-#' The simulation results and output format are consistent with \code{\link{simulation_EffectSize}}.
-#'
-#' @param spaDesign A \code{spaDesign} object containing:
-#'   \itemize{
-#'     \item Reference count matrix (accessible via \code{refCounts})
-#'     \item Spatial coordinates and domain labels (accessible via \code{refcolData})
-#'     \item Fitted NNGP parameters for domain-informative genes (accessible via \code{paramsGP})
-#'   }
-#' @param seq_depth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
-#' @param effect_size_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
-#' @param SEED Integer random seed for reproducibility.
-#'
-#' @return A \code{spaDesign} object with simulated counts stored in \code{simCounts}
-#' and spot metadata stored in \code{simcolData}.
-#'
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' sim_obj <- simulation_EffectSize_refactored(
-#'   spaDesign = my_spadesign,
-#'   seq_depth_factor = 1.2,
-#'   effect_size_factor = 1.5,
-#'   SEED = 1
-#' )
-#' }
-
-simulation_EffectSize_refactored <- function(spaDesign, seq_depth_factor, effect_size_factor, SEED){
-  
-  if (!is.numeric(seq_depth_factor) || seq_depth_factor <= 0) {
-    stop("seq_depth_factor must be a positive numeric value.")
+prepare_genelevel_mean <- function(spaDesign) {
+  counts <- refCounts(spaDesign)
+  meta <- as.data.frame(refcolData(spaDesign))
+  models <- paramsGP(spaDesign)
+  .genelevel_reference_check(counts, meta)
+  domains <- unique(as.character(meta$domain))
+  if (!is.list(models) || !length(models) ||
+      !.genelevel_names_ok(names(models), length(models)) ||
+      any(!names(models) %in% domains)) {
+    stop('paramsGP must be a nonempty list with unique reference-domain names.')
   }
-  if (!is.numeric(effect_size_factor) || effect_size_factor <= 0) {
-    stop("effect_size_factor must be a positive numeric value.")
+  for (d in names(models)) {
+    z <- models[[d]]
+    if (!is.list(z) || (length(z) &&
+        !.genelevel_names_ok(names(z), length(z)))) {
+      stop('Each paramsGP domain must contain a list of uniquely named gene models.')
+    }
   }
-  
-  # extract reference data
-  count_matrix <- refCounts(spaDesign)
-  all_spot_names <- colnames(count_matrix) # <-- Extract spot names once
-  loc_data <- refcolData(spaDesign)[, c('x', 'y', 'domain')]
-  par_GP <- paramsGP(spaDesign)
-  
-  ## scale the coordinates ... (this part is unchanged) ...
-  coords_norm <- igraph::norm_coords(as.matrix(loc_data[,c('x', 'y')]), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-  coords_norm <- as.data.frame(coords_norm)
-  coords_norm$domain <- loc_data$domain
-  
-  seqDepth_factor <- seq_depth_factor
-  ES_factor <- effect_size_factor
-  
-  message("Starting simulation...\n")
-  all_count <- lapply(seq_along(par_GP), function(d){
-    domain <- names(par_GP)[d]
-    GP.par <- par_GP[[d]]
-    
-    idx <- which(coords_norm$domain == domain)
-    coords_norm_sub <- coords_norm[idx, ]
-    coords_norm_out <- coords_norm[-idx, ]
-    
-    message(sprintf("Simulating genes for domain: %s\n", domain))
-    
-    gene_count <- lapply(seq_along(GP.par), function(g) {
-      tryCatch({
-        gene <- names(GP.par)[g]
-        # message(sprintf("Simulating gene: %s in domain: %s\n", gene, domain)) # Can be noisy
-        nnGP_fit <- GP.par[[g]]
-        
-        # --- KEY CHANGE IS HERE ---
-        # Check if gene exists and extract its single row of counts BEFORE calling the function
-        if (!gene %in% rownames(count_matrix)) {
-          warning(paste('Gene', gene, 'not found in count matrix for domain', domain))
-          return(NULL)
+  genes <- unique(unlist(lapply(models, names), use.names = FALSE))
+  if (!length(genes) || any(!genes %in% rownames(counts))) {
+    stop('Selected genes must be nonempty and present in refCounts.')
+  }
+  xy <- as.matrix(meta[, c('x', 'y'), drop = FALSE])
+  if (!is.numeric(xy) || any(!is.finite(xy)) ||
+      any(apply(xy, 2L, function(z) diff(range(z))) <= 0)) {
+    stop('Coordinates must be finite and vary on both axes.')
+  }
+  xy <- igraph::norm_coords(xy, xmin = 0, xmax = 1, ymin = 0, ymax = 1)
+  mu <- matrix(NA_real_, length(genes), ncol(counts),
+               dimnames = list(genes, colnames(counts)))
+  for (d in domains) {
+    idx <- which(as.character(meta$domain) == d)
+    fits <- models[[d]]
+    for (g in genes) {
+      if (g %in% names(fits)) {
+        fit <- fits[[g]]
+        tau2 <- unname(fit$Theta['tau.sq'])
+        if (length(tau2) != 1L || !is.finite(tau2) || tau2 < 0) {
+          stop('Invalid tau.sq for gene ', g, ' in domain ', d, '.')
         }
-        gene_count_row <- count_matrix[gene, ]
-        
-        # Call the refactored function with only the necessary data
-        tt <- simulate_genecount_ES_refactored(
-          SEED, coords_norm_sub, coords_norm_out, nnGP_fit, 
-          seqDepth_factor, ES_factor, 
-          gene_count_row = gene_count_row,      
-          all_spot_names = all_spot_names,      
-          spot_idx = idx
-        )
-        return(tt)
-      }, error = function(e) {
-        warning(paste('Error in gene', gene, 'of domain', domain, ':', e$message))
-        return(NULL)
-      })
-    })
-    
-    gene_count <- Filter(Negate(is.null), gene_count)
-    
-    if (length(gene_count) > 0) {
-      if (length(gene_count) == 1) {
-        gene_count <- t(data.frame(gene_count[[1]]))  # Ensure it's a data frame if only one row
+        pred <- BRISC::BRISC_prediction(fit, xy[idx, , drop = FALSE])
+        value <- round(exp(as.numeric(pred$prediction) + tau2 / 2)) - 1
+        if (length(value) != length(idx) || any(!is.finite(value)) ||
+            any(value < 0)) {
+          stop('Invalid GP mean for gene ', g, ' in domain ', d, '.')
+        }
+        mu[g, idx] <- value
       } else {
-        gene_count <- do.call(rbind, gene_count)
+        value <- as.numeric(counts[g, idx, drop = TRUE])
+        if (any(!is.finite(value)) || any(value < 0)) {
+          stop('Invalid reference counts for gene ', g, ' in domain ', d, '.')
+        }
+        mu[g, idx] <- mean(value)
       }
-      colnames(gene_count) <- all_spot_names
-      rownames(gene_count) <- paste0(domain, "-", names(GP.par))
-    } else {
-      warning(paste("All gene simulations for domain", domain, "returned NULL."))
-      return(NULL)
     }
-    
-    return(gene_count)
-  })
-  
-  
-  all_count <- Filter(Negate(is.null), all_count)
-  if (length(all_count) > 0) {
-    all_count <- do.call(rbind, all_count)
-    spaDesign@simCounts <- all_count
-    spaDesign@simcolData <- refcolData(spaDesign)
-    message("Simulation complete.\n")
-    return(spaDesign)
-  } else {
-    stop("All domain simulations returned NULL.")
   }
+  .genelevel_mean_check(mu)
+  mu
 }
 
-
-#' Simulate Expression Counts for a Single Gene
+#' Adjust between-domain expression effects
 #'
-#' Simulates Poisson gene expression counts for one gene across all spatial spots.
-#' Counts are generated for spots inside a domain using NNGP-predicted mean expression,
-#' and for spots outside the domain using an empirical baseline mean estimated from the
-#' observed data.
-#'
-#' The function supports global scaling of sequencing depth (\code{seqDepth_factor})
-#' and within-domain effect size (\code{ES_factor}).
-#'
-#' @param SEED Integer random seed for reproducibility.
-#' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
-#'   Must contain columns \code{x} and \code{y}.
-#' @param coords_norm_out Data frame of normalized coordinates for spots outside the domain.
-#'   Must contain columns \code{x} and \code{y}.
-#' @param nnGP_fit Fitted NNGP model object for the gene.
-#' @param seqDepth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
-#' @param ES_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
-#' @param counts Reference count matrix (genes x spots).
-#' @param gene Character string specifying the gene name.
-#' @param spot_idx Integer vector indicating indices of spots within the domain
-#'   (relative to \code{colnames(counts)}).
-#'
-#' @return Numeric vector of simulated counts for all spots, ordered to match
-#' \code{colnames(counts)}.
-#'
-#' @noRd
-
-simulate_genecount_ES <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, counts, gene, spot_idx){
-    
-    b.condition <- mean_in(SEED, coords_norm_sub, nnGP_fit)
-    
-    # the inside mean
-    mu1 <- sum(b.condition)
-    n1 <- nrow(coords_norm_sub)
-    
-    # the outside mean
-    mu.out <- mean_out(counts, gene, spot_idx)
-    n2 <- ncol(counts) - n1
-    
-  
-    
-    ## calculate lambda_in and lambda_out
-    A <- mu1 + n2 * mu.out
-    lambda.in <- A * ES_factor * b.condition / (ES_factor * mu1 + n2 * mu.out)
-    lambda.out <- mu.out * A / (ES_factor * mu1 + n2 * mu.out)
-    
-    set.seed(SEED)    
-    y.post <- rpois(n = nrow(coords_norm_sub), lambda = seqDepth_factor * lambda.in)
-	
-    sim.in <- data.frame(x = coords_norm_sub$x, y = coords_norm_sub$y, sim = y.post)
-    rownames(sim.in) <- rownames(coords_norm_sub)
-    
-    #set.seed(SEED)
-    y.out <- rpois(n = n2, lambda = seqDepth_factor * lambda.out)
-    sim.out <- data.frame(x = coords_norm_out$x, y = coords_norm_out$y, sim = y.out)
-    rownames(sim.out) <- rownames(coords_norm_out)
-    
-    count.sim <- rbind(sim.in, sim.out)
-    count.sim <- count.sim[order(match(rownames(count.sim),colnames(counts))),]
-    identical(rownames(count.sim),colnames(counts))
-    tt <- count.sim$sim
-    return(tt) 
-}
-
-
-#' Simulate Expression Counts for a Single Gene (Refactored)
-#'
-#' A refactored version of \code{\link{simulate_genecount_ES}} that reduces memory usage
-#' by using a single gene count vector instead of the full count matrix.
-#'
-#' Outside-domain baseline expression is computed from \code{gene_count_row}, while the
-#' ordering of spots is enforced using \code{all_spot_names}.
-#'
-#' @param SEED Integer random seed for reproducibility.
-#' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
-#' @param coords_norm_out Data frame of normalized coordinates for spots outside the domain.
-#' @param nnGP_fit Fitted NNGP model object for the gene.
-#' @param seqDepth_factor Numeric scalar > 0. Scaling factor for sequencing depth.
-#' @param ES_factor Numeric scalar > 0. Scaling factor for within-domain effect size.
-#' @param gene_count_row Numeric vector of observed counts for the target gene across all spots.
-#' @param all_spot_names Character vector of all spot names (canonical ordering).
-#' @param spot_idx Integer vector indicating indices of spots within the domain
-#'   (relative to \code{all_spot_names}).
-#'
-#' @return Numeric vector of simulated counts for all spots, ordered to match
-#' \code{all_spot_names}.
-#'
-#' @noRd
-
-simulate_genecount_ES_refactored <- function(SEED, coords_norm_sub, coords_norm_out, nnGP_fit, seqDepth_factor, ES_factor, gene_count_row, all_spot_names, spot_idx){
-  
-  b.condition <- mean_in(SEED, coords_norm_sub, nnGP_fit)
-  
-  # the inside mean
-  mu1 <- sum(b.condition)
-  n1 <- nrow(coords_norm_sub)
-  
-  # the outside mean
-  mu.out <- mean_out_refactored(gene_count_row, spot_idx)
-  n2 <- length(all_spot_names) - n1
-  
-  # calculate lambda_in and lambda_out
-  # A is the expected total count for baseline
-  A <- mu1 + n2 * mu.out
-  lambda.in <- A * ES_factor * b.condition / (ES_factor * mu1 + n2 * mu.out)
-  lambda.out <- mu.out * A / (ES_factor * mu1 + n2 * mu.out)
-  
-  set.seed(SEED)    
-  y.post <- rpois(n = nrow(coords_norm_sub), lambda = seqDepth_factor * lambda.in)
-  
-  sim.in <- data.frame(x = coords_norm_sub$x, y = coords_norm_sub$y, sim = y.post)
-  rownames(sim.in) <- rownames(coords_norm_sub)
-  
-  y.out <- rpois(n = n2, lambda = seqDepth_factor * lambda.out)
-  sim.out <- data.frame(x = coords_norm_out$x, y = coords_norm_out$y , sim = y.out)
-  rownames(sim.out) <- rownames(coords_norm_out)
-  
-  count.sim <- rbind(sim.in, sim.out)
-  # use the passed-in spot names for ordering
-  count.sim <- count.sim[order(match(rownames(count.sim), all_spot_names)),] 
-  
-  tt <- count.sim$sim
-  return(tt)  
-  
-}
-  
-
-
-#' Predict Within-Domain Mean Expression from a Fitted NNGP Model
-#'
-#' Uses a fitted NNGP model to predict expected expression levels for each spot inside a domain.
-#' The predicted values are transformed to the count scale and returned as a numeric vector,
-#' which is used as the within-domain mean intensity in simulation.
-#'
-#' @param SEED Integer random seed for reproducibility.
-#' @param coords_norm_sub Data frame of normalized coordinates for spots within the domain.
-#'   Must contain columns \code{x} and \code{y}.
-#' @param nnGP_fit Fitted NNGP model object for the gene (compatible with
-#'   \code{BRISC::BRISC_prediction}).
-#'
-#' @return Numeric vector of predicted within-domain mean expression values.
-#'
-#' @noRd
-
-mean_in <- function(SEED, coords_norm_sub, nnGP_fit) {
-    if (missing(SEED) || !is.numeric(SEED)) stop("SEED must be a numeric value.")
-    if (!is.data.frame(coords_norm_sub) || !all(c("x", "y") %in% names(coords_norm_sub))) stop("coords_norm_sub must be a data frame with 'x' and 'y' columns.")
-	
-	coords_spatial <- as.matrix(coords_norm_sub[, c('x', 'y')])
-	temp_file <- tempfile()
-	sink(temp_file)
-	brisc_pred <- BRISC::BRISC_prediction(nnGP_fit, coords_spatial)
-	sink()
-	unlink(temp_file)
-    sigma2 <- nnGP_fit$Theta['sigma.sq']
-	tau2 <- nnGP_fit$Theta['tau.sq']   
-    b.condition <- round(exp(brisc_pred$prediction + tau2/2))-1
-    return(b.condition)
-}
-
-#' Compute Outside-Domain Baseline Mean Expression
-#'
-#' Calculates the outside-domain baseline mean for a given gene by taking the mean of the
-#' lower half (<= median) of counts outside the domain. This provides a robust baseline
-#' against high-expression outliers.
-#'
-#' @param counts Matrix of gene expression counts (genes x spots).
-#' @param gene Character string specifying the gene name.
-#' @param spot_idx Integer vector indicating indices of spots within the domain.
-#'
-#' @return Numeric scalar representing the outside-domain baseline mean expression.
-#' @noRd
-mean_out <- function(counts, gene, spot_idx) {
-    if (!inherits(counts, "matrix") && !inherits(counts, "CsparseMatrix")) {
-      stop("counts must be a matrix or dgCMatrix.")
+#' @param mean_matrix Numeric gene-by-spot mean matrix with unique names.
+#' @param domain Domain labels in exactly the same order as matrix columns.
+#'   If named, names must match the matrix columns exactly.
+#' @param effect_power Finite numeric scalar > 0. One leaves means unchanged;
+#'   values above one amplify domain mean ratios.
+#' @return An adjusted mean matrix preserving each gene's total expected count.
+#' @details For positive domain means m[d], the adjusted domain mean ratio for
+#'   domains d and e is (m[d]/m[e])^effect_power. Within each domain all spots
+#'   receive the same multiplier. A nonzero gene with any zero domain mean
+#'   causes an error for effect_power other than one.
+#'   All-zero genes remain zero. 
+#' @export
+adjust_genelevel_effect <- function(mean_matrix, domain, effect_power = 1) {
+  .genelevel_mean_check(mean_matrix)
+  .genelevel_scalar_check(effect_power, 'effect_power', allow_zero = TRUE)
+  if (length(domain) != ncol(mean_matrix) || anyNA(domain) ||
+      any(!nzchar(as.character(domain)))) {
+    stop('domain must supply one nonmissing, nonempty label per spot.')
+  }
+  if (!is.null(names(domain)) &&
+      !identical(names(domain), colnames(mean_matrix))) {
+    stop('Names of domain must match mean_matrix columns in exactly the same order.')
+  }
+  if (effect_power == 1) return(mean_matrix)
+  domain <- as.character(domain)
+  groups <- lapply(unique(domain), function(d) which(domain == d))
+  adjusted <- mean_matrix
+  for (i in seq_len(nrow(mean_matrix))) {
+    baseline <- mean_matrix[i, ]
+    A <- sum(baseline)
+    if (!is.finite(A)) stop('Nonfinite total mean for gene ', rownames(mean_matrix)[i], '.')
+    if (A == 0) next
+    dm <- vapply(groups, function(idx) mean(baseline[idx]), numeric(1))
+    if (any(dm <= 0)) {
+      stop('Gene ', rownames(mean_matrix)[i],
+           ' has a zero domain mean; resolve zero means before adjusting effect.')
     }
-    if (!is.character(gene) || length(gene) != 1) stop("gene must be a single character string.")
-    if (!is.numeric(spot_idx)) stop("spot_idx must be numeric.")
-    
-    gene.count <- counts[which(rownames(counts) == gene), ]
-    OUT <- gene.count[-spot_idx]
-    OUT.lower <- OUT[OUT <= median(OUT)]
-    mean.out.low <- mean(OUT.lower)
-    return(mean.out.low)
+    logw <- (effect_power - 1) * log(dm)
+    if (any(!is.finite(logw))) stop('Effect scaling exceeds numeric range.')
+    w <- exp(logw - max(logw))
+    if (any(w == 0)) stop('Effect scaling underflow; reduce effect_power.')
+    tmp <- baseline
+    for (k in seq_along(groups)) {
+      idx <- groups[[k]]
+      tmp[idx] <- baseline[idx] * w[k]
+    }
+    B <- sum(tmp)
+    if (!is.finite(B) || B <= 0) stop('Invalid adjusted total mean.')
+    value <- (tmp / B) * A
+    if (any(!is.finite(value)) || any(value[baseline > 0] <= 0)) {
+      stop('Effect scaling exceeds numeric range.')
+    }
+    adjusted[i, ] <- value
+  }
+  adjusted
 }
 
-
-#' Compute Outside-Domain Baseline Mean Expression (Refactored)
+#' Simulate gene-level spatial counts with effect and depth scaling
 #'
-#' Refactored version of \code{mean_out} that works on a single gene count vector rather than a
-#' full gene-by-spot matrix.
-#'
-#' @param gene_count_row Numeric vector of observed counts for a single gene across all spots.
-#' @param spot_idx Integer vector indicating indices of spots within the domain.
-#'
-#' @return Numeric scalar representing the outside-domain baseline mean expression.
-#' @noRd
-mean_out_refactored <- function(gene_count_row, spot_idx){
-  if(!is.numeric(spot_idx)) stop('spot_idx must be numeric.')
-  
-  OUT <- gene_count_row[-spot_idx]
-  OUT.lower <- OUT[OUT <= median(OUT)]
-  mean.out.low <- mean(OUT.lower)
-  return(mean.out.low)
+#' @param spaDesign A spaDesign object containing reference counts and metadata.
+#' @param seq_depth_factor Finite numeric scalar > 0; multiplies Poisson means.
+#' @param effect_size_factor Finite numeric scalar > 0; passed to effect_power
+#'   in adjust_genelevel_effect. 
+#' @param SEED Nonnegative integer seed.
+#' @param mean_matrix Optional fixed means returned by prepare_genelevel_mean
+#'   for this reference and these fitted models. Columns must match reference counts exactly; rows must be
+#'   reference genes. The caller must regenerate this matrix if counts,
+#'   coordinates, domains or fitted models change.
+#' @return The spaDesign object with simCounts and simcolData updated.
+#' @details Every call samples independent Poisson entries conditional on the
+#'   adjusted means, setting the seed once per dataset. For a given gene, the
+#'   expected total is seq_depth_factor times its baseline total.
+#' @examples
+#' \dontrun{
+#' mu <- prepare_genelevel_mean(my_spadesign)
+#' simulated <- simulation_effectSize2(
+#'   my_spadesign, seq_depth_factor = 0.5,
+#'   effect_size_factor = 3, SEED = 1, mean_matrix = mu
+#' )
+#' simulated@simCounts
+#' }
+#' @export
+simulation_EffectSize <- function(spaDesign, seq_depth_factor = 1,
+                                 effect_size_factor = 1, SEED = 123,
+                                 mean_matrix = NULL) {
+  .genelevel_scalar_check(seq_depth_factor, 'seq_depth_factor')
+  .genelevel_scalar_check(effect_size_factor, 'effect_size_factor', TRUE)
+  if (!is.null(SEED) && (!is.numeric(SEED) || length(SEED) != 1L ||
+      !is.finite(SEED) || SEED < 0 || SEED > .Machine$integer.max ||
+      SEED != floor(SEED))) {
+    stop('SEED must be NULL or a nonnegative integer within the R integer range.')
+  }
+  counts <- refCounts(spaDesign)
+  metadata <- refcolData(spaDesign)
+  meta <- as.data.frame(metadata)
+  .genelevel_reference_check(counts, meta)
+  if (is.null(mean_matrix)) mean_matrix <- prepare_genelevel_mean(spaDesign)
+  .genelevel_mean_check(mean_matrix)
+  if (!identical(colnames(mean_matrix), colnames(counts)) ||
+      any(!rownames(mean_matrix) %in% rownames(counts))) {
+    stop('mean_matrix must use reference genes and the exact reference spot order.')
+  }
+  mu <- adjust_genelevel_effect(mean_matrix, meta$domain, effect_size_factor)
+  lambda <- seq_depth_factor * as.vector(mu)
+  if (any(!is.finite(lambda))) stop('Depth scaling produces nonfinite Poisson means.')
+  if (!is.null(SEED)) set.seed(SEED)
+  values <- stats::rpois(length(lambda), lambda = lambda)
+  if (any(!is.finite(values))) stop('Poisson sampling produced nonfinite counts.')
+  spaDesign@simCounts <- matrix(values, nrow(mu), ncol(mu), dimnames = dimnames(mu))
+  spaDesign@simcolData <- metadata
+  spaDesign
 }
 
+# Internal validation helpers; no exports.
+.genelevel_names_ok <- function(x, n) {
+  !is.null(x) && length(x) == n && !anyNA(x) &&
+    all(nzchar(x)) && !anyDuplicated(x)
+}
 
+.genelevel_scalar_check <- function(x, label, allow_zero = FALSE) {
+  if (!is.numeric(x) || length(x) != 1L || !is.finite(x) ||
+      (if (allow_zero) x < 0 else x <= 0)) {
+    stop(label, if (allow_zero) ' must be a finite numeric scalar >= 0.'
+         else ' must be a finite numeric scalar > 0.')
+  }
+  invisible(NULL)
+}
 
+.genelevel_mean_check <- function(x) {
+  if (!is.matrix(x) || !is.numeric(x) || any(dim(x) == 0L) ||
+      any(!is.finite(x)) || any(x < 0) ||
+      !.genelevel_names_ok(rownames(x), nrow(x)) ||
+      !.genelevel_names_ok(colnames(x), ncol(x))) {
+    stop('Means must be a finite nonnegative numeric matrix with unique gene and spot names.')
+  }
+  invisible(NULL)
+}
+
+.genelevel_reference_check <- function(counts, meta) {
+  if (length(dim(counts)) != 2L || any(dim(counts) == 0L) ||
+      !.genelevel_names_ok(rownames(counts), nrow(counts)) ||
+      !.genelevel_names_ok(colnames(counts), ncol(counts))) {
+    stop('refCounts must have nonzero dimensions and unique gene and spot names.')
+  }
+  if (!all(c('x', 'y', 'domain') %in% names(meta)) ||
+      !identical(colnames(counts), rownames(meta)) ||
+      anyNA(meta$domain) || any(!nzchar(as.character(meta$domain)))) {
+    stop('refcolData needs x, y and nonempty domain labels, with rows in exact refCounts column order.')
+  }
+  invisible(NULL)
+}
