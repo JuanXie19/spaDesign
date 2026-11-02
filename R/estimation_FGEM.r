@@ -8,7 +8,7 @@
 #' @param iter_max Maximum number of EM iterations (default = 1000)
 #' @param M_candidates Integer vector of candidate mixture sizes to try (default = 2:5)
 #' @param tol Positive convergence tolerance for EM algorithm (default = 1e-1)
-#' @param n_cores Number of CPU cores for parallization (default = 1). Uses multisession workers on Windows, macOS, and Linux.
+#' @param n_cores Number of CPU cores for parallization (default = 1).
 #' @param verbose Logical; if \code{TRUE}, print progress messages (default = TRUE).
 #' 
 #' @return Updated \code{spaDesign} object with Fisher-Gaussian parameter estimates and M list:
@@ -78,7 +78,7 @@ estimation_FGEM <- function(spaDesign,
   }
   
   # fit models for each domain
-	RST <- future.apply::future_lapply(seq_along(DOMAIN), function(d){
+	RST <- mclapply(seq_along(DOMAIN), function(d){
 		          coords_sub <- coords_norm %>% dplyr:: filter(domain == DOMAIN[d])
 		          
 		          FIT <- tryCatch({
@@ -93,7 +93,7 @@ estimation_FGEM <- function(spaDesign,
 		              return(NULL)
 		              })
 		          return(FIT)	
-	}, future.seed = TRUE)
+	}, mc.cores = n_cores)
 	
 	if (verbose){
   message('Completed fitting Fisher-Gaussian mixture models for all domains')
