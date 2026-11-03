@@ -68,7 +68,7 @@ evaluatePowerSeurat <- function(spaDesign) {
 	seurat <- RenameIdents(seurat,new_labels)
 	seurat$label_pred <- Idents(seurat)
 	
-    nmi <- aricode::NMI(seurat$true_domain, seurat$label_pred, variant = "sqrt")
+    nmi <- aricode::NMI(factor(seurat$true_domain), factor(seurat$label_pred), variant = "sqrt")
     spaDesign@simcolData$label_pred <- seurat$label_pred
     spaDesign@NMI <- nmi
 
