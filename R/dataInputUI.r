@@ -9,6 +9,9 @@
 #' @export
 dataInputUI <- function(id) {
   ns <- NS(id)
+  detected_cores <- parallel::detectCores()
+  max_cores <- if (.Platform$OS.type == "windows" || is.na(detected_cores)) 1L else detected_cores
+
   sidebarLayout(
     sidebarPanel(
       radioButtons(ns("data_source"), "Choose data source:",
@@ -42,8 +45,8 @@ dataInputUI <- function(id) {
           
           hr(),
           h5('Computational Parameters'),
-          numericInput(ns('n_cores'), 'Number of CPU cores:', value = 1, min = 1, max = parallel::detectCores(), step = 1),
-          helpText(paste('Your system has', parallel::detectCores(), 'cores available.'))
+          numericInput(ns('n_cores'), 'Number of CPU cores:', value = 1, min = 1, max = max_cores, step = 1),
+          helpText(paste('Maximum cores for data preparation:', max_cores()))
         ),
         
         # action button to triggole the analysis
