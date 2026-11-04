@@ -372,6 +372,45 @@ select_best_M <- function(x, M_candidates = 2:5, iter_max = 1000, tol = 1e-1) {
   ))
 }
 
+# Sample circular von Mises directions using R's seeded RNG.
+#' @noRd
+rvmf_2d <- function(n, mu, k) {
+  stopifnot(is.finite(k), k >= 0)
+  angle <- numeric(n)
+  center <- atan2(mu[2L], mu[1L])
+
+  if (k <= 1) {
+    # Uniform proposal with acceptance probability exp(k * (cos(a) - 1)).
+    for (i in seq_len(n)) {
+      repeat {
+        a <- stats::runif(1L, -pi, pi)
+        if (log(stats::runif(1L)) <= k * (cos(a) - 1)) break
+      }
+      angle[i] <- a
+    }
+  } else {
+    # Best-Fisher rejection sampler. Store r - 1 to avoid cancellation.
+    q <- 0.5 / k
+    t <- q + sqrt(1 + q^2)
+    r_minus_one <- q + q^2 / (1 + sqrt(1 + q^2))
+    for (i in seq_len(n)) {
+      repeat {
+        z <- cos(pi * stats::runif(1L))
+        one_minus_f <- r_minus_one * (1 - z) / (t + z)
+        c <- k * (r_minus_one + one_minus_f)
+        u <- stats::runif(1L)
+        if (u < c * (2 - c) || log(c) - log(u) + 1 - c >= 0) break
+      }
+      angle[i] <- sign(stats::runif(1L) - 0.5) *
+        2 * asin(sqrt(min(1, one_minus_f / 2)))
+    }
+  }
+
+  cbind(cos(center + angle), sin(center + angle))
+}
+
+
+
 
 ## Given the FG-mixture results and a number N, this function generates N samples from estimated density
 #' @import Directional
@@ -394,7 +433,11 @@ plot_density_FG_EM <- function(N, rst){
   for(k in 1:M){
       idx <- which(kr_label == k)
       if(length(idx) > 0){
-          yy <- Directional::rvmf(length(idx), phi[k, ],tau[k])
+          yy <- if(D == 2L){
+			rvmf_2d(length(idx), phi[k, ], tau[k])
+		  } else {
+			Directional::rvmf(length(idx), phi[k, ],tau[k])
+		  }
           if(length(idx) == 1){
             z[idx,] <- cntr[k, ] + rd[k] * yy
           }
