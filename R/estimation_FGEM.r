@@ -44,10 +44,6 @@ estimation_FGEM <- function(spaDesign,
                             n_cores = 2, 
                             verbose = FALSE){
   
-  # Use the requested worker count and restore the caller's plan on exit.
-  .spa_previous_plan <- .spa_multisession_plan(n_cores)
-  on.exit(future::plan(.spa_previous_plan), add = TRUE)
-
   # input validation
 	if (!is.numeric(iter_max) || iter_max <= 0 || iter_max != round(iter_max)) {
 		stop("iter_max must be a positive integer")
