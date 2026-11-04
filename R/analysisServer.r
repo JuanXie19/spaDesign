@@ -26,22 +26,23 @@ analysisServer <- function(id, data_obj){
       original_seq_depth_val <- sum(data_obj()@refCounts)/1e6
       original_seq_depth(original_seq_depth_val)
       
-      seq_range <- c(0.1, 0.3, 0.5, 0.7, 1:3)
+       n_cores <- if (.Platform$OS.type == "windows" || is.null(input$n_cores)) 1L else input$n_cores  
+	  seq_range <- c(0.1, 0.3, 0.5, 0.7, 1:3)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, 
-                                            seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
+                                            seq_depth_range = seq_range, n_rep = 5, n_cores = n_cores)
         base_res$condition <- 'Original'
         results <- list(base = base_res)
         
         if(input$simulation_type == "effect_size"){
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
-                                                seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
+                                                seq_depth_range = seq_range, n_rep = 5, n_cores = n_cores)
           effect_res$condition <- paste('Effect Size:', input$effect_size)
           results$effect <- effect_res
           
         } else if(input$simulation_type == "spatial"){
           spatial_res <- powerAnalysisSpatial(data_obj(), SIGMA = input$sigma, prop_range = 0.8,
-                                              seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
+                                              seq_depth_range = seq_range, n_rep = 5, n_cores = n_cores)
           spatial_res$condition <- paste('Spatial (Sigma):', input$sigma)
           results$spatial <- spatial_res
         }

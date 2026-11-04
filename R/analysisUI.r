@@ -14,6 +14,9 @@
 
 analysisUI <- function(id){
   ns <- NS(id)
+  detected_cores <- parallel::detectCores()
+  max_cores <- if (.Platform$OS.type == "windows" || is.na(detected_cores)) 1L else detected_cores
+
   sidebarLayout(
     # sidebar panel
     sidebarPanel(
@@ -38,6 +41,9 @@ analysisUI <- function(id){
         sliderInput(ns("sigma"), "Sigma(spatial noise):", min = 0.5, max = 3, value = 1, step = 0.5),
         shinyBS::bsTooltip(id = ns("sigma"), title = "Larger sigma leads to more disturbed spatial pattern.", placement = "right")
       ),
+	  shiny::numericInput(ns("n_cores"), "Number of CPU cores:",
+                          value = 1L, min = 1L, max = max_cores, step = 1L),
+
       actionButton(ns("run_sim"), "Run simulation", class = "btn-primary")
     ),
     
