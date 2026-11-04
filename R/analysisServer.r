@@ -17,13 +17,16 @@ analysisServer <- function(id, data_obj){
   moduleServer(id, function(input, output, session){
     sim_results <- reactiveVal(list())
     original_seq_depth <- reactiveVal(NULL)
-    
+    observeEvent(data_obj(), {
+      sim_results(list())
+      original_seq_depth(NULL)
+    }, ignoreNULL = FALSE, priority = 100)    
     observeEvent(input$run_sim, {
       req(data_obj())
       original_seq_depth_val <- sum(data_obj()@refCounts)/1e6
       original_seq_depth(original_seq_depth_val)
       
-      seq_range <- c(0.5, 1:3, 5, 7, 10)
+      seq_range <- c(0.1, 0.3, 0.5, 0.7, 1:3)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, 
                                             seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
