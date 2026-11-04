@@ -16,33 +16,33 @@
 analysisServer <- function(id, data_obj){
   moduleServer(id, function(input, output, session){
     sim_results <- reactiveVal(list())
-    original_seq_depth <- reactiveVal(NULL)
+    #original_seq_depth <- reactiveVal(NULL)
     observeEvent(data_obj(), {
       sim_results(list())
-      original_seq_depth(NULL)
+      #original_seq_depth(NULL)
     }, ignoreNULL = FALSE, priority = 100)    
     observeEvent(input$run_sim, {
       req(data_obj())
-      original_seq_depth_val <- sum(data_obj()@refCounts)/1e6
-      original_seq_depth(original_seq_depth_val)
+      #original_seq_depth_val <- sum(data_obj()@refCounts)/1e6
+      #original_seq_depth(original_seq_depth_val)
       
        n_cores <- if (.Platform$OS.type == "windows" || is.null(input$n_cores)) 1L else input$n_cores  
 	  seq_range <- c(0.1, 0.3, 0.5, 0.7, 1:3)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, 
-                                            seq_depth_range = seq_range, n_rep = 5, n_cores = n_cores)
+                                            seq_depth_range = seq_range, n_rep = 3, n_cores = n_cores)
         base_res$condition <- 'Original'
         results <- list(base = base_res)
         
         if(input$simulation_type == "effect_size"){
           effect_res <- powerAnalysisEffectSize(data_obj(), es_range = input$effect_size,
-                                                seq_depth_range = seq_range, n_rep = 5, n_cores = n_cores)
+                                                seq_depth_range = seq_range, n_rep = 3, n_cores = n_cores)
           effect_res$condition <- paste('Effect Size:', input$effect_size)
           results$effect <- effect_res
           
         } else if(input$simulation_type == "spatial"){
-          spatial_res <- powerAnalysisSpatial(data_obj(), SIGMA = input$sigma, prop_range = 0.8,
-                                              seq_depth_range = seq_range, n_rep = 5, n_cores = n_cores)
+          spatial_res <- powerAnalysisSpatial(data_obj(), SIGMA = input$sigma, prop_range = 0.2,
+                                              seq_depth_range = seq_range, n_rep = 3, n_cores = n_cores)
           spatial_res$condition <- paste('Spatial (Sigma):', input$sigma)
           results$spatial <- spatial_res
         }
@@ -53,10 +53,9 @@ analysisServer <- function(id, data_obj){
     combined_raw_data <- reactive({
       results <- sim_results()
       req(length(results) > 0)
-      req(original_seq_depth())
+	  
+	  dplyr::bind_rows()
       
-      dplyr::bind_rows(results) %>%
-        mutate(real_seq_depth = seq_depth * original_seq_depth())
     })
     
     processed_plot_data <- reactive({
@@ -64,13 +63,12 @@ analysisServer <- function(id, data_obj){
       req(data_to_process)
       
       data_to_process %>%
-        group_by(real_seq_depth, condition) %>%
+        group_by(seq_depth, condition) %>%
         summarise(mean_NMI = mean(NMI),
                   se_NMI = sd(NMI) / sqrt(n()),
                   .groups = 'drop') %>%
         mutate(mean_NMI = round(mean_NMI, 3),
-               se_NMI = round(se_NMI, 3),
-               real_seq_depth = round(real_seq_depth, 3))
+               se_NMI = round(se_NMI, 3))
     })
     
     # Updated reactive for saturation detection with user parameters
@@ -97,7 +95,6 @@ analysisServer <- function(id, data_obj){
         metric_col = "NMI",
         depth_col = "seq_depth",
         group_cols = "condition",
-        pilot_depth = original_seq_depth(),
         slope_threshold = slope_thresh,
         required_metric_percentage = metric_pct,
         k = 7,
@@ -115,15 +112,15 @@ analysisServer <- function(id, data_obj){
       )
       
       # Create base ggplot with observed data
-      p <- ggplot(plot_data_summary, aes(x = real_seq_depth, y = mean_NMI, color = condition,
+      p <- ggplot(plot_data_summary, aes(x = seq_depth, y = mean_NMI, color = condition,
                                          text = paste("Condition:", condition, "<br>",
-                                                      "Seq.Depth (million):", real_seq_depth, "<br>",
+                                                      "Depth factor:", seq_depth, "<br>",
                                                       "Mean NMI:", mean_NMI))) +
         geom_point() + 
         geom_errorbar(aes(ymin = mean_NMI - se_NMI, ymax = mean_NMI + se_NMI), width = 0.1) +
         theme_minimal() +
         labs(title = 'Mean NMI vs. Sequencing depth', 
-             x = 'Sequencing depth (million)', 
+             x = 'Depth multiplier', 
              y = 'Mean NMI') +
         ylim(0, 1)
       
@@ -138,14 +135,15 @@ analysisServer <- function(id, data_obj){
       if (nrow(pred_df) > 0) {
         p <- p + geom_line(
           data = pred_df,
-          aes(x = absolute_depth, y = metric_pred, color = condition, text = NULL),
+          aes(x = seq_depth, y = metric_pred, color = condition),
+		  inherit.aes = FALSE,
           linewidth = 1
         )
       }
       
       # Add saturation vertical lines
       sat_summary <- sat_results$summary
-      sat_summary <- sat_summary[!is.na(sat_summary$saturation_absolute_depth), ]
+      sat_summary <- sat_summary[!is.na(sat_summary$saturation_depth), ]
       
       if (nrow(sat_summary) > 0) {
         # Rename group to condition for consistency
@@ -154,7 +152,7 @@ analysisServer <- function(id, data_obj){
         # Add vertical dashed lines
         p <- p + geom_vline(
           data = sat_summary,
-          aes(xintercept = saturation_absolute_depth, color = condition),
+          aes(xintercept = saturation_depth, color = condition),
           linetype = 'dashed',
           show.legend = FALSE
         )
@@ -162,11 +160,11 @@ analysisServer <- function(id, data_obj){
         # Add saturation labels
         sat_summary$label_y_offset <- (seq_len(nrow(sat_summary)) %% 2) * 0.08
         sat_summary$label_y <- 0.05 + sat_summary$label_y_offset
-        sat_summary$label <- paste('Sat:', round(sat_summary$saturation_absolute_depth, 2))
+        sat_summary$label <- paste('Sat:', round(sat_summary$saturation_depth, 2))
         
         p <- p + geom_text(
           data = sat_summary,
-          aes(x = saturation_absolute_depth, y = label_y, label = label, color = condition),
+          aes(x = saturation_depth, y = label_y, label = label, color = condition),
           angle = 90, vjust = -0.5, hjust = 0, size = 3,
           inherit.aes = FALSE,
           show.legend = FALSE
@@ -184,9 +182,9 @@ analysisServer <- function(id, data_obj){
       )
       
       table_data <- table_data %>% 
-        dplyr::select(c(real_seq_depth, mean_NMI, se_NMI, condition)) %>%
+        dplyr::select(c(seq_depth, mean_NMI, se_NMI, condition)) %>%
         dplyr::arrange(condition) %>%
-        dplyr::rename('Sequencing depth (millions)' = real_seq_depth)
+        dplyr::rename('Depth multiplier' = seq_depth)
       
       DT::datatable(
         table_data,
