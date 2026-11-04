@@ -5,7 +5,7 @@
 #' @importFrom data.table fread
 #' @importFrom ggplot2 aes element_text geom_point ggplot labs theme theme_classic
 #' @importFrom graphics plot.new text
-#' @importFrom shiny moduleServer observeEevent outputOptions reactive reactiveVal renderPlot renderPrint req showNotification updateSelectInput withProgress
+#' @importFrom shiny moduleServer observeEvent outputOptions reactive reactiveVal renderPlot renderPrint req showNotification updateSelectInput withProgress
 #' @importFrom stats cutree dist hclust
 #'
 #' @noRd
@@ -65,7 +65,7 @@ dataInputServer <- function(id, reference_data_paths) {
                 any(!is.finite(coords_raw$px_col))) {
               stop("Positions CSV contains invalid tissue flags or pixel coordinates.")
             }
-            colnames(coords_raw) <- c("barcode", "in_tissue", "array_row", "array_col", "px_row", "px_col")
+			
             coords <- coords_raw[coords_raw$in_tissue == 1, ]
             
             if (nrow(coords) == 0) {
