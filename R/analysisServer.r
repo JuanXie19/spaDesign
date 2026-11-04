@@ -1,5 +1,5 @@
 #' Analysis Server Module
-#'
+#'  
 #' Server logic for simulation and analysis tab.
 #'
 #' @param id Module namespace.

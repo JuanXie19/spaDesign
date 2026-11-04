@@ -5,7 +5,7 @@
 #' @importFrom data.table fread
 #' @importFrom ggplot2 aes element_text geom_point ggplot labs theme theme_classic
 #' @importFrom graphics plot.new text
-#' @importFrom shiny eventReactive moduleServer outputOptions reactive renderPlot renderPrint req showNotification updateSelectInput withProgress
+#' @importFrom shiny moduleServer observeEevent outputOptions reactive reactiveVal renderPlot renderPrint req showNotification updateSelectInput withProgress
 #' @importFrom stats cutree dist hclust
 #'
 #' @noRd
@@ -42,12 +42,29 @@ dataInputServer <- function(id, reference_data_paths) {
           withProgress(message = 'Reading uploaded data...', {
             counts <- Seurat::Read10X_h5(filename = input$h5_file$datapath)
             
-            coords_raw <- data.table::fread(input$positions_file$datapath, header = FALSE)
-            
-            if (ncol(coords_raw) < 6) {
-              stop("Positions file must have at least 6 columns.")
+            position_names <- c("barcode", "in_tissue", "array_row", "array_col",
+                                "px_row", "px_col")
+            coords_raw <- data.table::fread(input$positions_file$datapath, header = FALSE,
+				colClasses = "character")
+            if (ncol(coords_raw) != length(position_names)) {
+              stop("Positions CSV must contain exactly six columns.")
             }
-            
+            first_row <- unlist(coords_raw[1L], use.names = FALSE)
+            if (identical(first_row, c("barcode", "in_tissue", "array_row",
+                                      "array_col", "pxl_row_in_fullres",
+                                      "pxl_col_in_fullres")) ||
+                identical(first_row, position_names)) {
+              coords_raw <- coords_raw[-1L, ]
+            }
+            names(coords_raw) <- position_names
+            coords_raw$px_row <- suppressWarnings(as.numeric(coords_raw$px_row))
+            coords_raw$px_col <- suppressWarnings(as.numeric(coords_raw$px_col))
+            if (anyNA(coords_raw$in_tissue) ||
+                !all(coords_raw$in_tissue %in% c("0", "1")) ||
+                any(!is.finite(coords_raw$px_row)) ||
+                any(!is.finite(coords_raw$px_col))) {
+              stop("Positions CSV contains invalid tissue flags or pixel coordinates.")
+            }
             colnames(coords_raw) <- c("barcode", "in_tissue", "array_row", "array_col", "px_row", "px_col")
             coords <- coords_raw[coords_raw$in_tissue == 1, ]
             
@@ -66,7 +83,7 @@ dataInputServer <- function(id, reference_data_paths) {
               stop("No common barcodes found between H5 and positions file.")
             }
             
-            counts <- counts[, common_barcodes]
+            counts <- counts[, common_barcodes, drop = FALSE]
             coords <- coords[common_barcodes, ]
             
             showNotification(
@@ -112,7 +129,13 @@ dataInputServer <- function(id, reference_data_paths) {
         if (anno_provided()) {
           withProgress(message = 'Reading user-provided annotations...', {
             anno_data <- fread(input$anno_file$datapath, header = TRUE)
-            req(colnames(anno_data) %in% c('barcode', 'domain'))
+            if (!all(c("barcode", "domain") %in% names(anno_data))) {
+              stop("Annotation CSV must contain barcode and domain columns.")
+            }
+            anno_data <- anno_data[, c("barcode", "domain"), with = FALSE]
+            if (anyDuplicated(anno_data$barcode)) {
+              stop("Annotation CSV contains duplicate barcodes.")
+            }
             
             common_barcodes <- intersect(rownames(coords), anno_data$barcode)
             if (length(common_barcodes) == 0) {
@@ -156,18 +179,32 @@ dataInputServer <- function(id, reference_data_paths) {
     #================================================================
     # 4. Event Reactive (from working version)
     #================================================================
-    processed_design_object <- eventReactive(input$prepare_data_button, {
-      req(input$data_source == 'upload')
-      counts <- raw_data()$counts
-      coords <- processed_coords()
-      req(counts, coords)
+    upload_files <- reactive({
+      list(input$h5_file, input$positions_file, input$anno_file)
+    })
+    prepared_upload <- reactiveVal(NULL)
+
+    observeEvent(upload_files(), {
+      prepared_upload(NULL)
+    }, ignoreInit = TRUE, priority = 100)
+
+    observeEvent(input$prepare_data_button, {
+      req(input$data_source == "upload")
+      prepared_upload(NULL)
       
       logfc_cutoff <- if (isTRUE(input$show_advanced)) input$logfc_cutoff else 0.7
       mean_in_cutoff <- if (isTRUE(input$show_advanced)) input$mean_in_cutoff else 1.8
       max_num_gene <- if (isTRUE(input$show_advanced)) input$max_num_gene else 10
       n_cores <- if(isTRUE(input$show_advanced)) input$n_cores else 1
-      
+   
+      if (.Platform$OS.type == "windows") n_cores <- 1L
+   
       tryCatch({
+        counts <- raw_data()$counts
+        coords <- processed_coords()
+        req(counts, coords)
+        counts <- counts[, rownames(coords), drop = FALSE]
+		  
         withProgress(message = "Creating design object...", value = 0.2, {
           DATA <- spaDesign::createDesignObject(count_matrix = counts, loc = coords)
           message("✓ Design object created")
@@ -199,8 +236,8 @@ dataInputServer <- function(id, reference_data_paths) {
           message("Starting estimation_FGEM...")
           DATA <- spaDesign::estimation_FGEM(
             DATA,
-            iter_max = 1000,
-            M_candidates = 2:7,
+            iter_max = 500,
+            M_candidates = 2:5,
             tol = 1e-1,
             n_cores = n_cores
           )
@@ -213,7 +250,7 @@ dataInputServer <- function(id, reference_data_paths) {
           duration = 5
         )
         
-        return(DATA)
+        prepared_upload(DATA)
         
       }, error = function(e) {
         message("ERROR: ", e$message)
@@ -246,7 +283,7 @@ dataInputServer <- function(id, reference_data_paths) {
         })
         
       } else {
-        return(processed_design_object())
+        return(prepared_upload())
       }
     })
     
