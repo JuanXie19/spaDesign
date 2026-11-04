@@ -46,7 +46,7 @@ dataInputUI <- function(id) {
           hr(),
           h5('Computational Parameters'),
           numericInput(ns('n_cores'), 'Number of CPU cores:', value = 1, min = 1, max = max_cores, step = 1),
-          helpText(paste('Maximum cores for data preparation:', max_cores()))
+          helpText(paste('Maximum cores for data preparation:', max_cores))
         ),
         
         # action button to triggole the analysis

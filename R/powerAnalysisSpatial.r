@@ -7,16 +7,16 @@
 #' @param SIGMA A numeric value indicating the Gaussian noise level.
 #' @param prop_range A numeric vector indicating the range of proportions 
 #'  (proportion of genes with undisturbed pattern).
-#' @param seq_depth_range A numeric vector indicating the range of sequencing depth scaling factors.
-#' @param n_rep An integer indicating the number of replications for each scenario.
+#' @param seq_depth_range A numeric vector of depth scaling factors.
+#' @param n_rep A positive integer number of replicates per scenario.
 #' @param n_cores Number of COP cores to use for parallellization (default = 1).
 #' 
 #' @return A data frame with columns:
 #' \describe{
 #'   \item{seq_depth}{Sequencing depth scaling factor.}
 #'   \item{prop}{Proportion of disturbed patterns.}
-#'   \item{total_counts}{Total counts in the simulated data.}
-#'   \item{NMI}{Normalized Mutual Information from power evaluation.}
+#'   \item{total_counts}{Total counts in simulated dataset.}
+#'   \item{NMI}{Normalized Mutual Information between predicted and true label.}
 #' }
 #' 
 #' @export

@@ -29,7 +29,7 @@ analysisServer <- function(id, data_obj){
       seq_range <- c(0.1, 0.3, 0.5, 0.7, 1:3)
       withProgress(message = "Running simulations...", {
         base_res <- powerAnalysisEffectSize(data_obj(), es_range = 1, 
-                                            seq_depth_range = seq_range, n_rep = 5, n_cores = 1)
+                                            seq_depth_range = seq_range, n_rep = 5)
         base_res$condition <- 'Original'
         results <- list(base = base_res)
         

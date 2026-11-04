@@ -12,14 +12,13 @@
 #' @param n_rep Positive integer number of replicates per scenario.
 #' @param mean_matrix Optional fixed baseline mean matrix returned by
 #'   prepare_genelevel_mean() for the same reference and fitted models.
+#' @param n_cores Positive integer worker count. Windows always uses one worker.
 #'
 #' @details The baseline GP mean matrix is prepared once. Each distinct effect
 #'   power is applied once before parallel simulation. 
 #'   Seeds 1 through n_rep are reused across scenarios, preserving the supplied
 #'   simulation convention. Reusing seeds does not implement nested read
-#'   thinning. The caller's future plan is restored on exit. Evaluation uses
-#'   future.seed = TRUE; for reproducible stochastic clustering as well as
-#'   counts, call set.seed() before invoking this function.
+#'   thinning. 
 #'
 #' @return Data frame with columns:
 #'   \describe{
@@ -35,10 +34,10 @@
 #' set.seed(123)
 #' results <- powerAnalysisEffectSize(
 #'   my_spadesign, es_range = c(0.5, 1, 3),
-#'   seq_depth_range = c(0.5, 1, 3, 5), n_rep = 5)
+#'   seq_depth_range = c(0.5, 1, 3, 5), n_rep = 5, n_cores = 1)
 #' }
 powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range,
-                                   n_rep, mean_matrix = NULL) {
+                                   n_rep, mean_matrix = NULL, n_cores = 1L) {
   if (!inherits(spaDesign, 'spaDesign')) {
     stop('spaDesign must be a spaDesign object.')
   }
@@ -57,6 +56,9 @@ powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range,
     }
   }
   check_integer(n_rep, 'n_rep')
+  check_integer(n_cores, 'n_cores')
+  if (.Platform$OS.type == 'windows') n_cores <- 1L
+
 
   # Validate reference alignment even when a precomputed matrix is supplied.
   counts <- refCounts(spaDesign)
@@ -107,8 +109,19 @@ powerAnalysisEffectSize <- function(spaDesign, es_range, seq_depth_range,
                    depth, effect, seed, conditionMessage(e)), call. = FALSE)
     })
   }
-  results <- lapply(
-    seq_len(nrow(param_grid)), process_row)
+  results <- parallel::mclapply(
+	seq_len(nrow(param_grid)), process_row,
+    mc.cores = n_cores, mc.preschedule = FALSE
+	)
+  failed <- vapply(results, inherits, logical(1), "try-error")
+  if (any(failed)) {
+    stop(conditionMessage(attr(results[[which(failed)[1L]]], "condition")),
+         call. = FALSE)
+  }
+  if (any(vapply(results, is.null, logical(1)))) {
+    stop("A simulation worker exited without returning a result.", call. = FALSE)
+  }
+
   results <- do.call(rbind, results)
   rownames(results) <- NULL
   results
