@@ -9,7 +9,8 @@ powerAnalysisEffectSize(
   es_range,
   seq_depth_range,
   n_rep,
-  mean_matrix = NULL
+  mean_matrix = NULL,
+  n_cores = 1L
 )
 }
 \arguments{
@@ -26,6 +27,8 @@ and values above one amplify domain mean ratios.}
 
 \item{mean_matrix}{Optional fixed baseline mean matrix returned by
 prepare_genelevel_mean() for the same reference and fitted models.}
+
+\item{n_cores}{Positive integer worker count. Windows always uses one worker.}
 }
 \value{
 Data frame with columns:
@@ -45,15 +48,13 @@ The baseline GP mean matrix is prepared once. Each distinct effect
 power is applied once before parallel simulation.
 Seeds 1 through n_rep are reused across scenarios, preserving the supplied
 simulation convention. Reusing seeds does not implement nested read
-thinning. The caller's future plan is restored on exit. Evaluation uses
-future.seed = TRUE; for reproducible stochastic clustering as well as
-counts, call set.seed() before invoking this function.
+thinning.
 }
 \examples{
 \dontrun{
 set.seed(123)
 results <- powerAnalysisEffectSize(
   my_spadesign, es_range = c(0.5, 1, 3),
-  seq_depth_range = c(0.5, 1, 3, 5), n_rep = 5)
+  seq_depth_range = c(0.5, 1, 3, 5), n_rep = 5, n_cores = 1)
 }
 }
