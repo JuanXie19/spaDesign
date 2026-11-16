@@ -16,8 +16,12 @@
 #' @param max_num_gene Integer. Maximum number of genes to select per spatial domain.
 #'   If more genes pass the filters, the top \code{max_num_gene} genes with highest
 #'   absolute logFC are retained.
+#' @param n_cores Positive integer. Number of cores used for gene selection.
+#'   Defaults to 1. On Windows, values greater than 1 are automatically
+#'   reduced to 1 with a warning. On macOS and Linux, the specified
+#'   number of cores is used. 
 #'
-#'#' @return A \code{spaDesign} object with the \code{topGenes} slot updated.
+#' @return A \code{spaDesign} object with the \code{topGenes} slot updated.
 #'   The \code{topGenes} slot contains a named list where each element corresponds
 #'   to a spatial domain and contains a data frame of selected genes with their
 #'   fold change statistics.
@@ -34,6 +38,7 @@
 #'   logfc_cutoff = 0.7,      # Require at least 0.7 log FC
 #'   mean_in_cutoff = 2,       # Require mean log-expression >= 2 in domain
 #'   max_num_gene = 50       # Select maximum 50 genes per domain
+#'   n_cores = 1
 #' )
 #'
 #' # Access the selected genes for each domain
@@ -43,19 +48,31 @@
 #' head(top_genes[[1]])
 #' }
 
-featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene){
+featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_gene, n_cores = 1L){
 	
     if (!is.numeric(logfc_cutoff) || logfc_cutoff <= 0) stop("'logfc_cutoff' must be a positive numeric value.")
     if (!is.numeric(mean_in_cutoff) || mean_in_cutoff <= 0) stop("'mean_in_cutoff' must be a positive numeric value.")
 
-
+	# Windows: automatically use one core
+    if (.Platform$OS.type == "windows" && n_cores > 1) {
+        warning(
+            "Multicore processing is not supported on Windows; using n_cores = 1.",
+            call. = FALSE
+        )
+        n_cores <- 1
+    }
+	
 	count_matrix <- refCounts(spaDesign)
 	loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
 	
 	FC_list <- geneSummary(count_matrix, loc_file)
 	
-	top_genes <- lapply(FC_list, function(DF) {
+	top_genes <- parallel::mclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
+		
+		# remove mitochondrial genes
+		DF <- DF[!grepl("^MT-", rownames(DF), ignore.case = TRUE), , drop = FALSE]
+
         idx <- which(DF$mean_in >= mean_in_cutoff & abs(DF$logFC_low) >= logfc_cutoff)
 
         if (length(idx) == 0) {
@@ -75,7 +92,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
         }
         message("Completed gene selection")
         return(selected_genes)
-    })
+    }, mc.cores = n_cores)
     names(top_genes) <- names(FC_list)
 	  spaDesign@topGenes <- top_genes
 	  message("Completed gene selection for all domains.")
@@ -98,6 +115,10 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #'     \item{y}{Numeric y-coordinate}
 #'     \item{domain}{Character or factor indicating domain membership for each spot}
 #'   }
+#' @param n_cores Positive integer. Number of cores used for gene selection.
+#'   Defaults to 1. On Windows, values greater than 1 are automatically
+#'   reduced to 1 with a warning. On macOS and Linux, the specified
+#'   number of cores is used.
 #'
 #' @details
 #' For each domain and each gene, the function calculates:
@@ -131,19 +152,36 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 #' # Assuming you have a count matrix and location data
 #' fc_stats <- geneSummary(
 #'   count_matrix = my_counts,
-#'   loc = my_locations
+#'   loc = my_locations,
+#'   n_cores = 1
 #' )
 #'
 #' # View statistics for first domain
 #' head(fc_stats[[1]])
 #'} 
-geneSummary <- function(count_matrix, loc){
+geneSummary <- function(count_matrix, loc, n_cores = 1L){
+
+	if (!is.numeric(n_cores) ||
+        length(n_cores) != 1L ||
+        !is.finite(n_cores) ||
+        n_cores < 1 ||
+        n_cores != floor(n_cores)) {
+        stop("'n_cores' must be a positive integer.")
+    }
+
+    if (.Platform$OS.type == "windows" && n_cores > 1) {
+        warning(
+            "Multicore processing is not supported on Windows; using n_cores = 1.",
+            call. = FALSE
+        )
+        n_cores <- 1
+    }
 		
 	count_matrix <- as.matrix(count_matrix)
 	domains <- sort(unique(loc$domain))
 	log_count <- log(count_matrix + 1)
 	
-	fc_results <- lapply(domains, function(domain) {
+	fc_results <- parallel::mclapply(domains, function(domain) {
         message("Calculating fold change for domain: ", domain)
         spot_idx <- which(loc$domain == domain)
 		rst <- as.data.frame(spa_gene_cpp(log_count, as.integer(spot_idx)))
@@ -151,7 +189,7 @@ geneSummary <- function(count_matrix, loc){
         colnames(rst) <- c("logFC", "logFC_low", "mean_in", "mean_out", "mean_out_low")
         message("Completed fold change calculation for domain: ", domain)
         rst
-    })
+    }, mc.cores = n_cores)
     names(fc_results) <- domains
     message("Completed fold change calculations for all domains")
     return(fc_results)
