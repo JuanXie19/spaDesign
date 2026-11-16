@@ -50,13 +50,22 @@ analysisServer <- function(id, data_obj){
       })
     })
     
-    combined_raw_data <- reactive({
-      results <- sim_results()
-      req(length(results) > 0)
-	  
-	  dplyr::bind_rows()
-      
-    })
+	combined_raw_data <- reactive({
+		results <- sim_results()
+		req(length(results) > 0)
+
+		combined <- dplyr::bind_rows(results)
+
+		validate(
+			need(nrow(combined) > 0, "No simulation results available."),
+			need(
+			all(c("seq_depth", "NMI", "condition") %in% names(combined)),
+		"Simulation results are missing required columns."
+		)
+	)
+
+	combined
+	})
     
     processed_plot_data <- reactive({
       data_to_process <- combined_raw_data()
