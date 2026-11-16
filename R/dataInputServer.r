@@ -215,7 +215,8 @@ dataInputServer <- function(id, reference_data_paths) {
             DATA,
             logfc_cutoff = logfc_cutoff,
             mean_in_cutoff = mean_in_cutoff,
-            max_num_gene = max_num_gene
+            max_num_gene = max_num_gene,
+			n_cores = n_cores
           )
           message("✓ Feature selection completed")
         })

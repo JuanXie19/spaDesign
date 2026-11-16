@@ -27,6 +27,7 @@
 #'   fold change statistics.
 
 #' @import dplyr
+#' @import parallel
 #' @importFrom stats median
 #' @export
 #'
@@ -37,7 +38,7 @@
 #'   spaDesign = my_spadesign,
 #'   logfc_cutoff = 0.7,      # Require at least 0.7 log FC
 #'   mean_in_cutoff = 2,       # Require mean log-expression >= 2 in domain
-#'   max_num_gene = 50       # Select maximum 50 genes per domain
+#'   max_num_gene = 50,       # Select maximum 50 genes per domain
 #'   n_cores = 1
 #' )
 #'
@@ -52,6 +53,10 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 	
     if (!is.numeric(logfc_cutoff) || logfc_cutoff <= 0) stop("'logfc_cutoff' must be a positive numeric value.")
     if (!is.numeric(mean_in_cutoff) || mean_in_cutoff <= 0) stop("'mean_in_cutoff' must be a positive numeric value.")
+	if (!is.numeric(n_cores) || length(n_cores) != 1L ||
+        !is.finite(n_cores) || n_cores < 1 || n_cores != floor(n_cores)) {
+        stop("'n_cores' must be a positive integer.")
+    }
 
 	# Windows: automatically use one core
     if (.Platform$OS.type == "windows" && n_cores > 1) {
@@ -65,7 +70,7 @@ featureSelection <- function(spaDesign, logfc_cutoff, mean_in_cutoff, max_num_ge
 	count_matrix <- refCounts(spaDesign)
 	loc_file <- refcolData(spaDesign)[, c('x','y','domain')]
 	
-	FC_list <- geneSummary(count_matrix, loc_file)
+	FC_list <- geneSummary(count_matrix, loc_file, n_cores = n_cores)
 	
 	top_genes <- parallel::mclapply(FC_list, function(DF) {
         message("Selecting genes with large absolute fold change and large within-domain expression")
