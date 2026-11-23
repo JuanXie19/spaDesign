@@ -40,6 +40,8 @@ Imports:
     RANN,
     clue,
     future.apply,
+	future,
+	pbapply
     Rfast,
 	Rcpp
 LinkingTo: Rcpp
@@ -48,4 +50,4 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
-SystemRequirements: Xcode Command Line Tools, gfortran
+SystemRequirements: Xcode Command Line Tools, gfortran， C++17
